@@ -1,0 +1,444 @@
+{
+  "data": {
+    "user": {
+      "id": "617f06bd75401e57d6a8a872",
+      "name": "Programming with Shahan",
+      "username": "codewithshahan",
+      "profilePicture": "https://cdn.hashnode.com/res/hashnode/image/upload/v1730125011538/43801bfc-302c-47ca-9dba-bab8c6eb874e.jpeg?w=500&h=500&fit=crop&crop=entropy&auto=compress,format&format=webp",
+      "tagline": "Hi, I am Shahan. A clean code enthusiast and top writer with over 1.2 million views. JavaScript is my armor.",
+      "bio": {
+        "text": "Hi, my name is Shahan Chowdhury — a clean code enthusiast and one of the elite developers in the industry (1.2 million+ blog views & been awarded Top 7 Writer three times). I am passionate about teaching clean code in a fun & easy way. JavaScript is my armor.\n"
+      },
+      "location": "",
+      "socialMediaLinks": {
+        "website": "https://get.brightdata.com/codewithshahan",
+        "github": "https://github.com/codewithshahan",
+        "twitter": "https://twitter.com/shahancd",
+        "linkedin": "https://www.linkedin.com/in/codewithshahan/",
+        "facebook": ""
+      },
+      "publications": {
+        "edges": [
+          {
+            "node": {
+              "id": "617f070cd55bde5cb668304e",
+              "posts": {
+                "edges": [
+                  {
+                    "node": {
+                      "id": "67740f155508d8f56fedb967",
+                      "title": "The future of frontend developer (2025)",
+                      "slug": "the-future-of-frontend-developer-2025",
+                      "brief": "🥊 Introduction\nThe environment of front-end development is CHANGING dramatically, thanks to technological developments, artificial intelligence (AI), and the growth of no-code/low-code platforms.\nIf you’re a front-end developer or aspiring to be one...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1735659121648/2dc6d4aa-6761-4977-8995-d3466566fab9.png"
+                      },
+                      "readTimeInMinutes": 5,
+                      "publishedAt": "2024-12-31T15:34:45.362Z",
+                      "tags": [
+                        {
+                          "id": "56a399f292921b8f79d3633c",
+                          "name": "Frontend Development",
+                          "slug": "frontend-development"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        },
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56aa13e5f28f9d9d99e3a5de",
+                          "name": "Career",
+                          "slug": "career"
+                        },
+                        {
+                          "id": "56a77939281161e11972fdd7",
+                          "name": "jobs",
+                          "slug": "jobs"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "6771c0f309fc0956df62d1de",
+                      "title": "10 bulletproof rules for writing clean code",
+                      "slug": "10-bulletproof-rules-for-writing-clean-code",
+                      "brief": "If you're in a messy room, you can’t find your keys. Clothes everywhere, books piled up.\n\nThat applied to messy code. It’s the SAME disaster, except now it’s your brain that’s LOSING its energy.\n\nClean code, on the other hand, is like walking into a ...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1735508103427/1576bac7-1019-422d-80d9-e1ee2b567662.gif"
+                      },
+                      "readTimeInMinutes": 6,
+                      "publishedAt": "2024-12-29T21:36:51.320Z",
+                      "tags": [
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        },
+                        {
+                          "id": "573504d39835efadc8742016",
+                          "name": "clean code",
+                          "slug": "clean-code"
+                        },
+                        {
+                          "id": "56a399f292921b8f79d3633c",
+                          "name": "Frontend Development",
+                          "slug": "frontend-development"
+                        },
+                        {
+                          "id": "56744722958ef13879b950bd",
+                          "name": "backend",
+                          "slug": "backend"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "676fd0b2ed1e99cdd6752052",
+                      "title": "Clean Code Zero to One",
+                      "slug": "clean-code-zero-to-one",
+                      "brief": "When you get stuck writing code, you TURN to AI.\nBut let me tell you something.\nAI can’t SAVE you if your code is a MESS.\nIt’s like building a house on sand.\nSure, it stands for a WHILE, but one gust of wind, and it collapses.\nAI is just a tool. YOU ...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1735380967924/b8101db7-8bd5-4861-9485-b94e6cebb119.jpeg"
+                      },
+                      "readTimeInMinutes": 3,
+                      "publishedAt": "2024-12-28T10:19:30.210Z",
+                      "tags": [
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        },
+                        {
+                          "id": "573504d39835efadc8742016",
+                          "name": "clean code",
+                          "slug": "clean-code"
+                        },
+                        {
+                          "id": "56744721958ef13879b94ae7",
+                          "name": "Programming Blogs",
+                          "slug": "programming-blogs"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "672605d4376eb138915957d9",
+                      "title": "5 open-source tools every developer should know",
+                      "slug": "5-open-source-tools-every-developer-should-know",
+                      "brief": "🔑 Key Concepts\nEvery programmer needs some efficient tools to help them write code, test it, and work with others.\nSome of these tools are open-source, which means anyone can use them for free.\nIn this article, we’ll talk about the top 5 open-source...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1730545071869/b1000296-bdbe-48e3-8ad6-6dfd0cc13a3e.jpeg"
+                      },
+                      "readTimeInMinutes": 3,
+                      "publishedAt": "2024-11-02T10:58:28.773Z",
+                      "tags": [
+                        {
+                          "id": "56744722958ef13879b94f32",
+                          "name": "Open Source",
+                          "slug": "opensource"
+                        },
+                        {
+                          "id": "56744723958ef13879b952d7",
+                          "name": "Developer",
+                          "slug": "developer"
+                        },
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "671fa00152cd6aaabd09f32e",
+                      "title": "How to Add Facial Authentication on Your Website! (FACEIO)",
+                      "slug": "how-to-add-facial-authentication-on-your-website-faceio",
+                      "brief": "What is FaceIO, and Why Use It? 🤳\nFaceIO is a service that allows websites and apps to recognize a person by their face using a webcam.\nInstead of typing a password or using a fingerprint, users can just look at the camera, and the app can confirm w...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1730125585884/3b6ec69a-b8a7-49b5-8efc-b29d775bf527.png"
+                      },
+                      "readTimeInMinutes": 7,
+                      "publishedAt": "2024-10-28T14:30:25.592Z",
+                      "tags": [
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56744721958ef13879b94b00",
+                          "name": "authentication",
+                          "slug": "authentication"
+                        },
+                        {
+                          "id": "56744722958ef13879b94fb7",
+                          "name": "Security",
+                          "slug": "security"
+                        },
+                        {
+                          "id": "56744723958ef13879b952af",
+                          "name": "webdev",
+                          "slug": "webdev"
+                        },
+                        {
+                          "id": "56744723958ef13879b95434",
+                          "name": "React",
+                          "slug": "reactjs"
+                        },
+                        {
+                          "id": "66bbfc09554ff2823e562214",
+                          "name": "faceio",
+                          "slug": "faceio"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "66d5087f289c6850e7cffc4a",
+                      "title": "How website work behind your click? (HTTP)",
+                      "slug": "how-website-work-behind-your-click-http",
+                      "brief": "1. What is HTTP?\nWhen you want to visit a website, like YouTube or dev.to, HTTP is the process that helps load the videos, text, and images on your screen.\nHTTP (HyperText Transfer Protocol) is simply a language (not programming language) that your c...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1725237231997/e6d699cf-6b26-49c4-827b-1da183766345.png"
+                      },
+                      "readTimeInMinutes": 4,
+                      "publishedAt": "2024-09-02T00:36:15.662Z",
+                      "tags": [
+                        {
+                          "id": "56744721958ef13879b94c04",
+                          "name": "http",
+                          "slug": "http"
+                        },
+                        {
+                          "id": "56744723958ef13879b954c1",
+                          "name": "coding",
+                          "slug": "coding"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        },
+                        {
+                          "id": "56744723958ef13879b95483",
+                          "name": "HTML5",
+                          "slug": "html5"
+                        },
+                        {
+                          "id": "56744722958ef13879b9519c",
+                          "name": "SEO",
+                          "slug": "seo"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "65e0262e32871d20568dbd86",
+                      "title": "Writing clean, reusable components in React (best practices)",
+                      "slug": "writing-clean-reusable-components-in-react-best-practices",
+                      "brief": "🔑 Key Concepts\nWhat are reusable React components? You can think of them as building blocks.\nThey are independent pieces of code that can be reused throughout your website to save you time and effort. \nThey can be anything from simple buttons to com...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1709188544255/8acc08b0-9710-4269-927e-976c5b1b4371.png"
+                      },
+                      "readTimeInMinutes": 6,
+                      "publishedAt": "2024-02-29T06:37:34.129Z",
+                      "tags": [
+                        {
+                          "id": "65e0262ee6e1e2d4a815cc02",
+                          "name": "begi",
+                          "slug": "begi"
+                        },
+                        {
+                          "id": "56744723958ef13879b95434",
+                          "name": "React",
+                          "slug": "reactjs"
+                        },
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56744723958ef13879b952af",
+                          "name": "webdev",
+                          "slug": "webdev"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "65d8916bf53b2deeccdecb0c",
+                      "title": "Figma for Developers (tutorial)",
+                      "slug": "figma-for-developers-tutorial",
+                      "brief": "Web design has undergone major changes over the years. From static HTML pages to dynamic websites, innovation has been ongoing. 🌄\n🗝️ Key Concepts\nFigma has gained widespread popularity among companies.\nThe reasons include:\n\n💸 Free to Use\n\n🌐 Brows...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1708691749310/941f0dc6-1849-4751-9b42-6a03e20454bb.png"
+                      },
+                      "readTimeInMinutes": 12,
+                      "publishedAt": "2024-02-23T12:36:59.047Z",
+                      "tags": [
+                        {
+                          "id": "56a399f292921b8f79d3633c",
+                          "name": "Frontend Development",
+                          "slug": "frontend-development"
+                        },
+                        {
+                          "id": "56744723958ef13879b954f5",
+                          "name": "UI",
+                          "slug": "ui"
+                        },
+                        {
+                          "id": "56744722958ef13879b94e9d",
+                          "name": "UX",
+                          "slug": "ux"
+                        },
+                        {
+                          "id": "56744721958ef13879b94b91",
+                          "name": "CSS",
+                          "slug": "css"
+                        },
+                        {
+                          "id": "56744721958ef13879b94e0c",
+                          "name": "tools",
+                          "slug": "tools"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "65aec0100f0db2499cd277e3",
+                      "title": "The future of frontend development",
+                      "slug": "the-future-of-frontend-development",
+                      "brief": "🥊Introduction:\nThe environment of front-end development is changing dramatically, thanks to technological developments, artificial intelligence (AI), and the growth of no-code/low-code platforms.\nSo let's look at the changing trends and examine the ...",
+                      "coverImage": null,
+                      "readTimeInMinutes": 3,
+                      "publishedAt": "2024-01-22T19:20:48.091Z",
+                      "tags": [
+                        {
+                          "id": "56a399f292921b8f79d3633c",
+                          "name": "Frontend Development",
+                          "slug": "frontend-development"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        },
+                        {
+                          "id": "56744721958ef13879b9488e",
+                          "name": "AI",
+                          "slug": "ai"
+                        },
+                        {
+                          "id": "56aa13e5f28f9d9d99e3a5de",
+                          "name": "Career",
+                          "slug": "career"
+                        },
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        }
+                      ],
+                      "reactionCount": 1,
+                      "responseCount": 0
+                    }
+                  },
+                  {
+                    "node": {
+                      "id": "65a3c825fa07ee9886b15852",
+                      "title": "How to solve problems like a PRO!",
+                      "slug": "how-to-solve-problems-like-a-pro",
+                      "brief": "🍃Introduction:\nFor many new coders, problem-solving can feel like trying to solve a puzzle blindfolded.\nGIF\n\nYou may know the rules and tools, but how to put them together is the REAL CHALLENGE.\nYou can watch a short animated video regarding this ar...",
+                      "coverImage": {
+                        "url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1705232352422/a3a9e458-c210-4e9c-ae09-e1684d0bd6b3.png"
+                      },
+                      "readTimeInMinutes": 2,
+                      "publishedAt": "2024-01-14T11:40:21.272Z",
+                      "tags": [
+                        {
+                          "id": "56744721958ef13879b94ae7",
+                          "name": "Programming Blogs",
+                          "slug": "programming-blogs"
+                        },
+                        {
+                          "id": "582f085aa96be26a2dc48b62",
+                          "name": "Problem Solving",
+                          "slug": "problem-solving"
+                        },
+                        {
+                          "id": "56744721958ef13879b94cad",
+                          "name": "JavaScript",
+                          "slug": "javascript"
+                        },
+                        {
+                          "id": "56744722958ef13879b94f1b",
+                          "name": "Web Development",
+                          "slug": "web-development"
+                        },
+                        {
+                          "id": "56aa13e5f28f9d9d99e3a5de",
+                          "name": "Career",
+                          "slug": "career"
+                        }
+                      ],
+                      "reactionCount": 0,
+                      "responseCount": 0
+                    }
+                  }
+                ],
+                "totalDocuments": 24
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

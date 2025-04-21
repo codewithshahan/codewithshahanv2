@@ -1,0 +1,253 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap");
+
+/* Import our code block styles */
+@import "../styles/code-block.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 98%;
+    --foreground: 240 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+
+    --primary: 244 75% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-rgb: 93, 95, 239;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 5% 10%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 40%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    --accent-rgb: 158, 23, 254;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 10% 4%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 4%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 244 75% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-rgb: 93, 95, 239;
+
+    --secondary: 240 4% 14%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 4% 14%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+    --accent-rgb: 158, 23, 254;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 240 5% 84%;
+  }
+
+  .glass-input {
+    @apply bg-white/5 hover:bg-white/10 focus:bg-white/10 backdrop-blur-sm border-border/50 hover:border-primary/50 focus:border-primary/70 transition-all duration-200;
+  }
+
+  .animate-gradient-slow {
+    animation: gradient 15s ease infinite;
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 180px; /* Adjust based on your navbar + banner height */
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: "Inter", sans-serif;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Orbitron", sans-serif;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+
+  .dark .glass {
+    @apply bg-black/20 border-white/10;
+  }
+
+  .glass-card {
+    @apply relative overflow-hidden rounded-xl p-6 glass transition-all duration-300;
+  }
+
+  .glass-card-shine {
+    @apply absolute -inset-full z-0 block transform bg-gradient-to-r from-[#44BCFF] via-[#FF44EC] to-[#FF675E] opacity-0 blur-2xl mix-blend-overlay group-hover:animate-shine;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-br from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-primary {
+    @apply bg-gradient-to-br from-primary via-primary/90 to-accent bg-clip-text text-transparent;
+  }
+
+  /* 3D grid backgrounds */
+  .bg-grid-small-white {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M1 0h1v1H1V0zm3 0h1v1H4V0zm3 0h1v1H7V0zm3 0h1v1h-1V0zm3 0h1v1h-1V0zm3 0h1v1h-1V0zm3 0h1v1h-1V0zM0 1h1v1H0V1zm21 0h1v1h-1V1zM0 4h1v1H0V4zm21 0h1v1h-1V4zM0 7h1v1H0V7zm21 0h1v1h-1V7zM0 10h1v1H0v-1zm21 0h1v1h-1v-1zM0 13h1v1H0v-1zm21 0h1v1h-1v-1zM0 16h1v1H0v-1zm21 0h1v1h-1v-1zM0 19h1v1H0v-1zm21 0h1v1h-1v-1zM1 21h1v1H1v-1zm3 0h1v1H4v-1zm3 0h1v1H7v-1zm3 0h1v1h-1v-1zm3 0h1v1h-1v-1zm3 0h1v1h-1v-1zm3 0h1v1h-1v-1z'/%3E%3C/svg%3E");
+  }
+
+  .dark .bg-grid-small-white {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='white' d='M1 0h1v1H1V0zm3 0h1v1H4V0zm3 0h1v1H7V0zm3 0h1v1h-1V0zm3 0h1v1h-1V0zm3 0h1v1h-1V0zm3 0h1v1h-1V0zM0 1h1v1H0V1zm21 0h1v1h-1V1zM0 4h1v1H0V4zm21 0h1v1h-1V4zM0 7h1v1H0V7zm21 0h1v1h-1V7zM0 10h1v1H0v-1zm21 0h1v1h-1v-1zM0 13h1v1H0v-1zm21 0h1v1h-1v-1zM0 16h1v1H0v-1zm21 0h1v1h-1v-1zM0 19h1v1H0v-1zm21 0h1v1h-1v-1zM1 21h1v1H1v-1zm3 0h1v1H4v-1zm3 0h1v1H7v-1zm3 0h1v1h-1v-1zm3 0h1v1h-1v-1zm3 0h1v1h-1v-1zm3 0h1v1h-1v-1z'/%3E%3C/svg%3E");
+  }
+
+  /* 3D shine effect */
+  .shine-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shine-effect::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      to bottom right,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: rotate(30deg);
+    transition: transform 0.7s ease-in-out;
+  }
+
+  .shine-effect:hover::after {
+    transform: rotate(30deg) translate(100%, 100%);
+  }
+}
+
+@keyframes shine {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  25% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  75% {
+    opacity: 0.1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes matrix-rain {
+  0% {
+    transform: translateY(-100%);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .animate-shine {
+    animation: shine 2s ease forwards;
+  }
+  .animate-matrix {
+    animation: matrix-rain 2s linear infinite;
+  }
+  .matrix-bg {
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 255, 170, 0.1) 50%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+  .glow {
+    text-shadow: 0 0 10px rgba(20, 184, 166, 0.7);
+  }
+  .glow-box {
+    box-shadow: 0 0 15px rgba(20, 184, 166, 0.3);
+  }
+
+  /* 3D Button effects */
+  .btn-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .btn-3d:hover {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 10px 25px -5px rgba(var(--primary-rgb), 0.3);
+  }
+
+  .btn-3d:active {
+    transform: translateY(1px) scale(0.99);
+  }
+}
