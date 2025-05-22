@@ -1,10 +1,27 @@
-import React, { ReactNode } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+"use client";
+
+import React, { useRef } from "react";
+import { motion, useInView, useScroll, useTransform } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+type AnimationDirection = "up" | "down" | "left" | "right" | "none";
+type AnimationDistance = "subtle" | "medium" | "large";
 
 interface SectionTransitionProps {
-  children: ReactNode;
+  children: React.ReactNode;
   className?: string;
-  index?: number;
+  delay?: number;
+  duration?: number;
+  direction?: AnimationDirection;
+  distance?: AnimationDistance;
+  once?: boolean;
+  threshold?: number;
+  scale?: boolean;
+  blur?: boolean;
+  stagger?: boolean;
+  staggerChildren?: number;
+  staggerDirection?: "forward" | "reverse";
+  elementType?: keyof JSX.IntrinsicElements;
 }
 
 /**
@@ -13,76 +30,165 @@ interface SectionTransitionProps {
  * This component creates subtle parallax and fade effects for content sections
  * giving the page a premium, fluid feel inspired by Apple's website transitions.
  */
-const SectionTransition: React.FC<SectionTransitionProps> = ({
+export default function SectionTransition({
   children,
   className = "",
-  index = 0,
-}) => {
-  // Calculate staggered transition delays based on index
-  const baseDelay = 0.1 + index * 0.05;
+  delay = 0,
+  duration = 0.5,
+  direction = "up",
+  distance = "medium",
+  once = true,
+  threshold = 0.1,
+  scale = false,
+  blur = false,
+  stagger = false,
+  staggerChildren = 0.05,
+  staggerDirection = "forward",
+  elementType = "div",
+}: SectionTransitionProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, {
+    once,
+    amount: threshold,
+  });
+
+  // Map distance values to actual pixels for translation
+  const distanceMap = {
+    subtle: 15,
+    medium: 30,
+    large: 60,
+  };
+
+  const getTranslateValue = (): [number, number] => {
+    const pixelValue = distanceMap[distance];
+    switch (direction) {
+      case "up":
+        return [0, pixelValue];
+      case "down":
+        return [0, -pixelValue];
+      case "left":
+        return [pixelValue, 0];
+      case "right":
+        return [-pixelValue, 0];
+      default:
+        return [0, 0];
+    }
+  };
+
+  // Define animation variants
+  const containerVariants = {
+    hidden: {
+      opacity: 0,
+      x: getTranslateValue()[0],
+      y: getTranslateValue()[1],
+      scale: scale ? 0.95 : 1,
+      filter: blur ? "blur(10px)" : "blur(0px)",
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      scale: 1,
+      filter: "blur(0px)",
+      transition: {
+        duration,
+        delay,
+        ease: [0.2, 0.65, 0.3, 0.9], // Apple-like spring easing
+        when: "beforeChildren",
+        staggerChildren: stagger ? staggerChildren : 0,
+        staggerDirection: staggerDirection === "forward" ? 1 : -1,
+      },
+    },
+  };
+
+  // Child animation variant for staggered animations
+  const childVariants = {
+    hidden: {
+      opacity: 0,
+      y: 20,
+      scale: scale ? 0.95 : 1,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: duration * 0.8,
+        ease: [0.2, 0.65, 0.3, 0.9],
+      },
+    },
+  };
+
+  const MotionComponent = motion[elementType as keyof typeof motion];
 
   return (
     <motion.div
-      className={`relative ${className}`}
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-10%" }}
-      transition={{
-        duration: 0.8,
-        ease: [0.22, 1, 0.36, 1], // Custom Apple-like ease curve
-        delay: baseDelay,
-      }}
+      ref={ref}
+      className={cn(className)}
+      initial="hidden"
+      animate={isInView ? "visible" : "hidden"}
+      variants={containerVariants}
     >
-      {/* Subtle gradient backdrop for depth */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.01] to-transparent opacity-50 pointer-events-none" />
-
-      {/* Main content with slight parallax */}
-      <motion.div
-        initial={{ scale: 0.98 }}
-        whileInView={{ scale: 1 }}
-        viewport={{ once: true, margin: "-20%" }}
-        transition={{
-          duration: 1.2,
-          ease: [0.22, 1, 0.36, 1],
-          delay: baseDelay + 0.1,
-        }}
-      >
-        {children}
-      </motion.div>
+      {stagger
+        ? React.Children.map(children, (child, index) => {
+            if (React.isValidElement(child)) {
+              return (
+                <motion.div
+                  key={index}
+                  variants={childVariants}
+                  transition={{
+                    delay: index * staggerChildren,
+                  }}
+                >
+                  {child}
+                </motion.div>
+              );
+            }
+            return child;
+          })
+        : children}
     </motion.div>
   );
-};
+}
 
-export default SectionTransition;
+// Export a higher-order component for custom animations
+export function withSectionTransition<P extends object>(
+  WrappedComponent: React.ComponentType<P>,
+  transitionProps: Omit<SectionTransitionProps, "children">
+) {
+  return function WithTransition(props: P) {
+    return (
+      <SectionTransition {...transitionProps}>
+        <WrappedComponent {...props} />
+      </SectionTransition>
+    );
+  };
+}
 
 /**
  * ParallaxSection - A component that adds parallax scrolling effects
  * with variable intensities for different elements, creating depth
  */
 interface ParallaxSectionProps {
-  children: ReactNode;
+  children: React.ReactNode;
   intensity?: number; // 0-1, default 0.5
   className?: string;
 }
 
-export const ParallaxSection: React.FC<ParallaxSectionProps> = ({
+export function ParallaxSection({
   children,
   intensity = 0.5,
   className = "",
-}) => {
-  // Calculate parallax effect based on scroll position
-  const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], [0, -100 * intensity]);
+}: ParallaxSectionProps) {
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 1000], [0, 300 * intensity]);
 
   return (
-    <motion.div
-      className={`relative overflow-hidden ${className}`}
-      style={{ y }}
-    >
-      {children}
-    </motion.div>
+    <div className={cn("relative overflow-hidden", className)}>
+      <motion.div style={{ y }}>{children}</motion.div>
+    </div>
   );
-};
+}
 
 /**
  * RevealText - A text revealing animation component in the style of Apple reveals

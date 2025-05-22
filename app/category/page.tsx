@@ -6,12 +6,12 @@ import { motion } from "framer-motion";
 import { Providers } from "@/components/providers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { MacOSDock } from "@/components/category/MacOSDock";
+import { MacOSDock } from "@/components/categories/MacOSDock";
 import { useTheme } from "next-themes";
 import { Category, getUniqueCategories } from "@/lib/categories";
 import { Loader2 } from "lucide-react";
+import { fetchArticles } from "@/services/api";
 import { fetchProducts } from "@/services/gumroad";
-import { ApiClient } from "@/services/apiClient";
 
 export default function CategoryIndexPage() {
   const router = useRouter();
@@ -32,70 +32,16 @@ export default function CategoryIndexPage() {
         setLoading(true);
         console.log("Fetching categories...");
 
-        // First, try to get categories directly from the unified API client
-        try {
-          const apiCategories = await ApiClient.categories.getAllCategories();
-          if (apiCategories && apiCategories.length > 0) {
-            console.log(
-              "Successfully fetched categories from API:",
-              apiCategories.length
-            );
+        // First, let's check if we can fetch articles and products directly
+        const [articles, products] = await Promise.all([
+          fetchArticles(1),
+          fetchProducts(),
+        ]);
 
-            // Get product counts to enrich the category data
-            const products = await fetchProducts();
+        console.log("Articles response:", articles);
+        console.log("Products response:", products);
 
-            // Format the categories with product counts
-            const enrichedCategories = apiCategories.map((category) => {
-              // Calculate product count for this category
-              const categoryProducts = products.filter((product: any) => {
-                const normalizedSlug = category.slug.toLowerCase();
-
-                // Check if product has this category
-                const hasCategory = product.categories?.some(
-                  (cat: string) =>
-                    cat.toLowerCase().replace(/\s+/g, "-") === normalizedSlug
-                );
-
-                // Check if product has this tag
-                const hasTag = product.tags?.some(
-                  (tag: string) =>
-                    tag.toLowerCase().replace(/\s+/g, "-") === normalizedSlug
-                );
-
-                return hasCategory || hasTag;
-              });
-
-              // Create Category object with Icon
-              const Icon =
-                require("lucide-react")[category.icon || "Lightbulb"] ||
-                require("lucide-react").Lightbulb;
-
-              return {
-                name: category.name,
-                slug: category.slug,
-                description:
-                  category.description ||
-                  `Explore ${category.name} articles and resources`,
-                icon: Icon,
-                articleCount: category.articleCount || 0,
-                productCount: categoryProducts.length,
-              };
-            });
-
-            setCategories(enrichedCategories);
-            setError(null);
-            setLoading(false);
-            return; // Exit early as we successfully got the data
-          }
-        } catch (error) {
-          console.error(
-            "Error fetching categories from API, falling back to utility:",
-            error
-          );
-          // We'll continue to the fallback method
-        }
-
-        // Fallback: Use the getUniqueCategories utility
+        // Now fetch categories using our utility
         const data = await getUniqueCategories();
         console.log("Processed categories:", data);
 

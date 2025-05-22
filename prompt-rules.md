@@ -51,3 +51,29 @@ When responding:
 - Always think like a senior engineer: what is the best and cleanest way to implement this?
 
 All code must be production-ready, optimized, and follow Apple-level design standards with obsessive attention to detail. Every interaction should feel intentional, refined, and delightful in the tradition of world-class digital product/website design in the style of a professional senior Apple UI/UX software engineer and developer with 30y of world-class professional creative experience.
+
+CURSOR INTERACTION GUIDELINES (To avoid suspicious activity blocks):
+
+1. REQUEST SPECIFICITY: Always make specific, focused requests instead of broad code generation tasks; break complex tasks into smaller, well-defined steps.
+
+2. CONTEXTUAL REQUESTS: Provide clear context about what you're trying to accomplish; reference existing files and components in your requests.
+
+3. PROGRESSIVE DEVELOPMENT: Allow one task to complete fully before starting another; avoid rapid sequential requests for similar functionality.
+
+4. PRECISE REFERENCES: Use exact file paths and line numbers when requesting edits; be specific about what should be changed.
+
+5. INCREMENTAL CHANGES: Request smaller, incremental changes rather than wholesale rewrites; build complexity gradually.
+
+6. EFFICIENT COMMUNICATION: Avoid repeating the same request in different ways if the first attempt isn't successful; instead, refine your request.
+
+7. ERROR RESOLUTION: When fixing errors, focus on addressing the specific issue rather than regenerating entire sections of code.
+
+8. RESOURCE MANAGEMENT: Allow sufficient processing time between complex requests; be patient with large file operations.
+
+9. CLEAR DOCUMENTATION: Explicitly request documentation only when needed; prefer inline comments for complex logic.
+
+10. REVISION APPROACH: For revisions, specify exactly what needs changing rather than asking for the entire component to be regenerated.
+
+11. FILE MANAGEMENT: Create new files only when necessary; prefer modifying existing components when extending functionality.
+
+12. TESTING STRATEGY: Request focused test cases rather than comprehensive test suites in a single interaction.

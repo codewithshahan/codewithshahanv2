@@ -593,9 +593,9 @@ const EbookBanner = () => {
           scale: 1,
           y: 0,
           height: "auto",
-          marginTop: "1.5rem", // Reduced from 2.5rem
-          marginBottom: "2rem", // Reduced for better spacing
-          padding: "2rem 1rem", // Reduced from 2.5rem
+          marginTop: "0", // Removed margin
+          marginBottom: "2rem",
+          padding: "2rem 1rem",
           pointerEvents: "auto",
           transition: {
             duration: 0.6,
@@ -1467,9 +1467,9 @@ const EbookBanner = () => {
           scale: 0.98,
           y: -20,
           height: "auto",
-          marginTop: "1.5rem", // Reduced from 2.5rem
-          marginBottom: "2rem", // Reduced from 2.5rem
-          padding: "2rem 1rem", // Reduced from 2.5rem
+          marginTop: "0", // Removed margin
+          marginBottom: "2rem",
+          padding: "2rem 1rem",
           pointerEvents: "auto",
         }}
         animate={{
@@ -1490,13 +1490,12 @@ const EbookBanner = () => {
         <motion.div
           className={`w-full max-w-6xl rounded-2xl overflow-hidden shadow-[0_10px_50px_rgba(0,0,0,0.25)] border ${
             isDark
-              ? "bg-[#1c1c1e]/90 border-[#3a3a3c]"
-              : "bg-[#ffffff]/90 border-[#e0e0e0]"
-          } backdrop-blur-xl`}
+              ? "bg-[#1c1c1e] border-[#3a3a3c]"
+              : "bg-[#ffffff] border-[#e0e0e0]"
+          }`}
           style={{
             willChange: "transform, opacity",
             backfaceVisibility: "hidden",
-            backdropFilter: "blur(20px)",
             position: "relative",
             transformOrigin: "center center",
           }}

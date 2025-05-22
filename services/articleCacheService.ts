@@ -1,4 +1,6 @@
+import config from "@/lib/config";
 import { fetchHashnodeQuery } from "@/lib/api";
+import { SimplifiedHashnodeApi } from "@/services/hashnodeApi";
 
 // Types for article data
 export interface HashnodeArticle {
@@ -35,33 +37,40 @@ interface ArticleCache {
   bySlug: Record<string, HashnodeArticle>;
   lastFetched: number;
   isFetching: boolean;
+  fetchPromise: Promise<HashnodeArticle[]> | null;
+  retryCount: number;
+  lastError: Error | null;
 }
 
-// GraphQL queries
-const HASHNODE_ALL_ARTICLES_QUERY = `
-  query GetAllArticles {
-    publication(host: "${
-      process.env.NEXT_PUBLIC_HASHNODE_PUBLICATION_ID ||
-      "codewithshahan.hashnode.dev"
-    }") {
-      posts(first: 100) {
+// Use the same query as /article route
+const GET_USER_ARTICLES = `
+  query GetUserArticles($username: String!, $after: String, $publicationId: ObjectId) {
+    publication(id: $publicationId) {
+      posts(first: 100, after: $after) {
         edges {
           node {
             _id
             title
             brief
             slug
-            content {
-              markdown
-            }
+            dateAdded
+            contentMarkdown
             coverImage
-            publishedAt
-            url
+            readTime
             tags {
               name
               slug
             }
+            author {
+              name
+              username
+              profilePicture
+            }
           }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
@@ -75,81 +84,55 @@ const cache: ArticleCache = {
   bySlug: {},
   lastFetched: 0,
   isFetching: false,
+  fetchPromise: null,
+  retryCount: 0,
+  lastError: null,
 };
 
-// Cache TTL in milliseconds (10 minutes)
-const CACHE_TTL = 10 * 60 * 1000;
+// Cache TTL in milliseconds (30 minutes)
+const CACHE_TTL = 30 * 60 * 1000;
 
-// Edge node type from Hashnode GraphQL API
-interface HashnodeNodeData {
-  _id: string;
-  title: string;
-  slug: string;
-  brief?: string;
-  content?: {
-    markdown?: string;
-  };
-  coverImage: string;
-  publishedAt: string;
-  updatedAt?: string;
-  readingTime?: string;
-  readTimeInMinutes?: number;
-  views?: number;
-  reactionCount?: number;
-  url?: string;
-  tags?: {
-    name: string;
-    slug: string;
-    color?: string;
-    logo?: string;
-  }[];
-  author?: {
-    name: string;
-    profilePicture?: string;
-    bio?: {
-      text: string;
-    };
-  };
-  features?: {
-    tableOfContents?: {
-      items: any[];
-    };
-  };
-}
+// Maximum number of articles to keep in cache to prevent memory issues
+const MAX_CACHE_SIZE = 200;
+
+// Backoff strategy for retries
+const getBackoffDelay = (retryCount: number): number => {
+  return Math.min(1000 * Math.pow(2, retryCount), 30000); // Max 30 seconds
+};
 
 /**
- * Transform raw Hashnode data to our article format
+ * Transform raw Hashnode data to our article format (same as /article)
  */
-const transformArticleData = (node: HashnodeNodeData): HashnodeArticle => ({
+const transformArticleData = (node: any): HashnodeArticle => ({
   id: node._id,
   title: node.title,
   slug: node.slug,
   brief: node.brief,
-  content: node.content?.markdown,
+  content: node.contentMarkdown,
   coverImage: node.coverImage,
-  publishedAt: node.publishedAt,
-  updatedAt: node.updatedAt,
-  url: node.url,
-  tableOfContents: node.features?.tableOfContents?.items || [],
-  readingTime: node.readingTime || node.readTimeInMinutes?.toString(),
-  views: node.views,
-  likes: node.reactionCount,
-  tags: node.tags?.map((tag) => ({
+  publishedAt: node.dateAdded,
+  updatedAt: undefined,
+  url: undefined,
+  tableOfContents: [],
+  readingTime: node.readTime?.toString(),
+  views: undefined,
+  likes: undefined,
+  tags: node.tags?.map((tag: any) => ({
     name: tag.name,
     slug: tag.slug,
-    color: tag.color,
+    color: undefined,
   })),
   author: node.author
     ? {
         name: node.author.name,
         image: node.author.profilePicture,
-        bio: node.author.bio?.text,
+        bio: undefined,
       }
     : undefined,
 });
 
 /**
- * Fetch all articles and populate cache
+ * Fetch all articles and populate cache (unified with /article logic)
  */
 export const fetchAndCacheAllArticles = async (
   force = false
@@ -162,66 +145,195 @@ export const fetchAndCacheAllArticles = async (
     now - cache.lastFetched < CACHE_TTL &&
     !cache.isFetching
   ) {
+    console.log(
+      "[ArticleCacheService] Using cached articles, count:",
+      cache.allArticles.length
+    );
     return cache.allArticles;
   }
 
-  // Prevent multiple simultaneous fetches
-  if (cache.isFetching) {
-    // If already fetching, wait until complete
-    return new Promise((resolve) => {
-      const checkCache = () => {
-        if (!cache.isFetching) {
-          resolve(cache.allArticles);
-        } else {
-          setTimeout(checkCache, 100);
-        }
-      };
-      checkCache();
-    });
+  // If we've had a recent error and this isn't a forced refresh, use existing cache
+  if (
+    !force &&
+    cache.lastError &&
+    now - cache.lastFetched < 60000 &&
+    cache.allArticles.length > 0
+  ) {
+    console.warn("[ArticleCacheService] Using cached data due to recent error");
+    return cache.allArticles;
   }
 
-  try {
-    cache.isFetching = true;
-
-    // Fetch articles from Hashnode
-    const data = await fetchHashnodeQuery(HASHNODE_ALL_ARTICLES_QUERY);
-    const edges = data?.publication?.posts?.edges || [];
-
-    // Transform and store articles
-    const articles = edges.map((edge: { node: HashnodeNodeData }) =>
-      transformArticleData(edge.node)
+  // Return existing promise if already fetching
+  if (cache.isFetching && cache.fetchPromise) {
+    console.log(
+      "[ArticleCacheService] Request debounced - using existing promise"
     );
+    return cache.fetchPromise;
+  }
 
-    // Update cache
-    cache.allArticles = articles;
-    cache.lastFetched = now;
+  // Create new fetch promise
+  console.log("[ArticleCacheService] Starting fresh article fetch");
+  cache.isFetching = true;
+  cache.fetchPromise = new Promise<HashnodeArticle[]>(async (resolve) => {
+    try {
+      console.log("[ArticleCacheService] Preparing query variables");
+      // Use the same variables as /article
+      const queryVariables = {
+        username: config.hashnode.username,
+        after: null,
+        publicationId: config.hashnode.publicationId,
+      };
 
-    // Organize by slug and tags for quick access
-    articles.forEach((article: HashnodeArticle) => {
-      // By slug
-      cache.bySlug[article.slug] = article;
+      console.log(
+        "[ArticleCacheService] Query variables:",
+        JSON.stringify(queryVariables, null, 2)
+      );
 
-      // By tag
-      if (article.tags) {
-        article.tags.forEach((tag) => {
+      console.log("[ArticleCacheService] Calling fetchHashnodeQuery");
+      const data = await fetchHashnodeQuery(GET_USER_ARTICLES, queryVariables);
+      console.log(
+        "[ArticleCacheService] fetchHashnodeQuery returned:",
+        data ? "data present" : "no data"
+      );
+
+      if (!data || !data.publication || !data.publication.posts) {
+        console.error(
+          "[ArticleCacheService] Missing expected data structure from API"
+        );
+        console.error(
+          "[ArticleCacheService] Data:",
+          JSON.stringify(data, null, 2)
+        );
+        throw new Error("Invalid API response structure");
+      }
+
+      const edges = data?.publication?.posts?.edges || [];
+      console.log(
+        `[ArticleCacheService] Received ${edges.length} edges from API`
+      );
+
+      if (edges.length === 0) {
+        console.warn("[ArticleCacheService] No articles found in API response");
+      }
+
+      // Transform and store articles
+      console.log("[ArticleCacheService] Transforming article data");
+      const articles = edges
+        .map((edge: { node: any }) => {
+          try {
+            return transformArticleData(edge.node);
+          } catch (error) {
+            console.error(
+              "[ArticleCacheService] Error transforming article:",
+              error
+            );
+            console.error("[ArticleCacheService] Problematic node:", edge.node);
+            return null;
+          }
+        })
+        .filter(Boolean);
+
+      console.log(
+        `[ArticleCacheService] Successfully transformed ${articles.length} articles`
+      );
+
+      // Limit cache size to prevent memory issues
+      const trimmedArticles = articles.slice(0, MAX_CACHE_SIZE);
+
+      // Update cache
+      cache.allArticles = trimmedArticles;
+      cache.lastFetched = now;
+      cache.retryCount = 0;
+      cache.lastError = null;
+
+      // Organize by slug and tags for quick access
+      console.log("[ArticleCacheService] Organizing articles by slug and tags");
+      cache.bySlug = {};
+      cache.byTag = {};
+
+      trimmedArticles.forEach((article: HashnodeArticle) => {
+        // Store by slug for quick access
+        if (article.slug) {
+          cache.bySlug[article.slug] = article;
+        }
+
+        // Store by tag for tag pages
+        article.tags?.forEach((tag) => {
+          if (!tag.slug) return;
+
           if (!cache.byTag[tag.slug]) {
             cache.byTag[tag.slug] = [];
           }
           cache.byTag[tag.slug].push(article);
         });
-      }
-    });
+      });
 
-    console.log(
-      `[ArticleCacheService] Cached ${articles.length} articles from Hashnode`
-    );
-    return articles;
-  } catch (error) {
-    console.error("[ArticleCacheService] Error fetching articles:", error);
-    return cache.allArticles; // Return existing cache even if fetch failed
-  } finally {
-    cache.isFetching = false;
-  }
+      // Successfully fetched and processed articles
+      console.log(
+        `[ArticleCacheService] Cache updated with ${trimmedArticles.length} articles`
+      );
+      resolve(trimmedArticles);
+    } catch (error) {
+      cache.retryCount++;
+      cache.lastError =
+        error instanceof Error ? error : new Error(String(error));
+
+      // Enhanced error reporting
+      console.error(
+        `[ArticleCacheService] ❌ Error fetching articles (Attempt ${cache.retryCount}):`
+      );
+      console.error("Original error:", error);
+
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+
+      // Check for common API error patterns
+      const errorStr = String(error);
+      if (errorStr.includes("publicationId")) {
+        console.error(
+          "❌ LIKELY ISSUE: Invalid Publication ID. Check your config.hashnode.publicationId value."
+        );
+      } else if (
+        errorStr.includes("Unauthorized") ||
+        errorStr.includes("Bearer")
+      ) {
+        console.error(
+          "❌ LIKELY ISSUE: Invalid API Key. Check your config.hashnode.apiKey value."
+        );
+      } else if (errorStr.includes("username")) {
+        console.error(
+          "❌ LIKELY ISSUE: Invalid username. Check your config.hashnode.username value."
+        );
+      } else if (errorStr.includes("rate limit")) {
+        console.error(
+          "❌ LIKELY ISSUE: Rate limited by Hashnode API. Try again later."
+        );
+      }
+
+      console.error("[ArticleCacheService] Hashnode Config:", {
+        username: config.hashnode.username,
+        publicationId: config.hashnode.publicationId,
+        apiKeyPresent: !!config.hashnode.apiKey,
+      });
+
+      console.log(
+        `[ArticleCacheService] Will try again in ${getBackoffDelay(
+          cache.retryCount
+        )}ms`
+      );
+
+      // Return empty array or cached articles if available
+      resolve(cache.allArticles.length > 0 ? cache.allArticles : []);
+    } finally {
+      cache.isFetching = false;
+      cache.fetchPromise = null;
+    }
+  });
+
+  return cache.fetchPromise;
 };
 
 /**
@@ -300,3 +412,56 @@ export const initializeArticleCache = (): void => {
 export const getAllCachedArticles = (): HashnodeArticle[] => {
   return cache.allArticles;
 };
+
+export async function getTrendingArticles(
+  limit: number = 6
+): Promise<HashnodeArticle[]> {
+  const { articles } = await SimplifiedHashnodeApi.fetchArticles(20);
+  // Fallback: trending = most recent
+  return [...articles]
+    .sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    )
+    .slice(0, limit);
+}
+
+export async function getLatestArticles(
+  limit: number = 5
+): Promise<HashnodeArticle[]> {
+  const { articles } = await SimplifiedHashnodeApi.fetchArticles(20);
+  return [...articles]
+    .sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    )
+    .slice(0, limit);
+}
+
+export async function getArticleCategories(): Promise<
+  { id: string; name: string; slug: string; count: number; color?: string }[]
+> {
+  const { articles } = await SimplifiedHashnodeApi.fetchArticles(20);
+  const tagMap: Record<
+    string,
+    { id: string; name: string; slug: string; count: number; color?: string }
+  > = {};
+  articles.forEach((article: HashnodeArticle) => {
+    article.tags?.forEach(
+      (tag: { name: string; slug: string; color?: string }) => {
+        if (!tagMap[tag.slug]) {
+          tagMap[tag.slug] = {
+            id: tag.slug,
+            name: tag.name,
+            slug: tag.slug,
+            count: 1,
+            color: tag.color,
+          };
+        } else {
+          tagMap[tag.slug].count += 1;
+        }
+      }
+    );
+  });
+  return Object.values(tagMap).sort((a, b) => b.count - a.count);
+}

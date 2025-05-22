@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-export default {
+const config: Config = {
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -8,7 +8,6 @@ export default {
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
   ],
-  prefix: "",
   theme: {
     container: {
       center: true,
@@ -73,45 +72,28 @@ export default {
           to: { height: "0" },
         },
         shine: {
-          "0%": {
-            opacity: "0",
-            transform: "translate(-50%, -50%) scale(0)",
-          },
-          "50%": {
-            opacity: "0.3",
-          },
-          "100%": {
-            opacity: "0",
-            transform: "translate(-50%, -50%) scale(1)",
-          },
+          from: { transform: "translateX(-100%) rotate(45deg)" },
+          to: { transform: "translateX(100%) rotate(45deg)" },
         },
         shimmer: {
-          "0%": {
-            backgroundPosition: "-200% 0",
-          },
-          "100%": {
-            backgroundPosition: "200% 0",
-          },
+          "0%": { backgroundPosition: "-1000px 0" },
+          "100%": { backgroundPosition: "1000px 0" },
         },
         pulse: {
-          "0%, 100%": {
-            opacity: "1",
-            transform: "scale(1)",
-          },
-          "50%": {
-            opacity: "0.8",
-            transform: "scale(1.05)",
-          },
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        shine: "shine 8s ease-in-out infinite",
-        shimmer: "shimmer 3s linear infinite",
-        pulse: "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        shine: "shine 2s infinite",
+        shimmer: "shimmer 2s infinite linear",
+        pulse: "pulse 2s infinite",
       },
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;
+
+export default config;

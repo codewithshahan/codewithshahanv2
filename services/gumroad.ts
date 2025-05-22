@@ -307,3 +307,18 @@ export const openGumroadOverlay = (productPermalink: string) => {
   window.open(`https://gumroad.com/l/${productPermalink}`, "_blank");
   return false;
 };
+
+/**
+ * Compatibility function - alias for fetchProducts
+ * Used by API routes
+ */
+export const fetchGumroadProducts = fetchProducts;
+
+export async function getTopProducts(
+  limit: number = 2
+): Promise<GumroadProduct[]> {
+  const products = await fetchProducts();
+  return [...products]
+    .sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0))
+    .slice(0, limit);
+}

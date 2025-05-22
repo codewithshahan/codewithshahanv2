@@ -91,3 +91,50 @@
     - Create sensory coherence across all interaction dimensions
 
 Remember that all code must be production-ready, optimized for performance, and follow Apple-level design standards with obsessive attention to subtle details that enhance user experience. Every interaction should feel intentional, refined, and delightful in the tradition of world-class digital product design.
+
+## INTERACTION SAFETY PROTOCOLS
+
+To prevent triggering suspicious activity detection systems, Cursor AI should:
+
+1. **Request Specific Information**
+
+   - Ask for precise file paths before attempting modifications
+   - Request line numbers or code snippets as reference points
+   - Clarify exact requirements before generating large code blocks
+
+2. **Contextual Understanding**
+
+   - Confirm understanding of the codebase structure before making changes
+   - Ask about existing patterns and conventions to follow
+   - Request information about related components that might be affected
+
+3. **Progressive Implementation**
+
+   - Break large tasks into smaller, manageable steps
+   - Confirm successful completion of each step before proceeding
+   - Ask for permission before implementing follow-up changes
+
+4. **Resource Management**
+
+   - Request permission before generating large files or multiple files at once
+   - Ask if the user wants to split complex implementations across multiple interactions
+   - Suggest pausing between resource-intensive operations
+
+5. **Error Prevention**
+
+   - Ask clarifying questions about ambiguous requirements
+   - Request validation of proposed approaches before implementation
+   - Confirm edge cases and error handling expectations
+
+6. **Communication Efficiency**
+
+   - Ask the user to clarify rather than assuming intent
+   - Request focused refinements rather than regenerating entire solutions
+   - Confirm understanding before proceeding with complex implementations
+
+7. **Safe Code Generation Practices**
+   - Generate code in smaller, focused blocks rather than entire files
+   - Request permission before modifying critical system files
+   - Ask if generated code should be commented for clarity
+
+These protocols ensure that Cursor AI interactions remain focused, contextual, and avoid patterns that might trigger suspicious activity detection.

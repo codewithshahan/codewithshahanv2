@@ -1,55 +1,45 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import Image from "next/image";
 import { useTheme } from "next-themes";
-import { Box, ChevronRight, Filter, Search, Tag } from "lucide-react";
+import { Search, Tag as TagIcon, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ApiClient } from "@/services/apiClient";
 import { Category } from "@/services/categoriesApi";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Providers } from "@/components/providers";
 import { MacOSDock } from "@/components/MacOSDock";
-import { PageHeader } from "@/components/PageHeader";
-import { cn } from "@/lib/utils";
 
-export default function CategoriesPage() {
+interface CategoriesProps {}
+
+export default function CategoriesPage({}: CategoriesProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Refs for animations
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"],
-  });
-
-  const headerOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0.6]);
-  const headerY = useTransform(scrollYProgress, [0, 0.1], [0, -20]);
-  const scrollSpring = useSpring(scrollYProgress, {
-    damping: 15,
-    stiffness: 100,
-  });
-
-  // States
+  // State
   const [categories, setCategories] = useState<Category[]>([]);
-  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [activeCategoryIdx, setActiveCategoryIdx] = useState<number | null>(
-    null
-  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Load categories
+  // Hydration fix
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Fetch all categories
   useEffect(() => {
     const fetchCategories = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
         const data = await ApiClient.categories.getAllCategories();
         setCategories(data);
-        setFilteredCategories(data);
       } catch (error) {
         console.error("Error fetching categories:", error);
       } finally {
@@ -60,316 +50,364 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  // Handle search
-  useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredCategories(categories);
-      return;
-    }
+  // Filter categories based on search and tags
+  const filteredCategories = React.useMemo(() => {
+    if (!searchQuery.trim() && selectedTags.length === 0) return categories;
 
-    const filtered = categories.filter(
-      (category) =>
+    return categories.filter((category) => {
+      // Search query match
+      const searchMatch =
+        !searchQuery.trim() ||
         category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (category.description &&
-          category.description
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()))
+        (category.description || "")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+
+      // Tag match (if any tags are selected)
+      const tagMatch =
+        selectedTags.length === 0 ||
+        selectedTags.some((tag) =>
+          category.tags?.some((catTag) =>
+            typeof catTag === "string"
+              ? catTag.toLowerCase() === tag.toLowerCase()
+              : (catTag.name || catTag.slug || "").toLowerCase() ===
+                tag.toLowerCase()
+          )
+        );
+
+      return searchMatch && tagMatch;
+    });
+  }, [categories, searchQuery, selectedTags]);
+
+  // Get unique tags from all categories
+  const allTags = React.useMemo(() => {
+    const tags = categories.flatMap(
+      (category) =>
+        category.tags?.map((tag) =>
+          typeof tag === "string" ? tag : tag.name || tag.slug || ""
+        ) || []
     );
+    return [...new Set(tags)].filter(Boolean);
+  }, [categories]);
 
-    setFilteredCategories(filtered);
-  }, [searchQuery, categories]);
-
-  // Handle mouse enter/leave for 3D effect
-  const handleMouseEnter = (index: number) => {
-    setActiveCategoryIdx(index);
+  // Handle tag selection
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   };
 
-  const handleMouseLeave = () => {
-    setActiveCategoryIdx(null);
-  };
+  if (!isMounted) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen" ref={containerRef}>
-      {/* Hero Header */}
-      <motion.div
-        className={cn(
-          "relative h-[40vh] min-h-[300px] flex flex-col items-center justify-center px-4 overflow-hidden",
-          isDark ? "bg-black" : "bg-white"
-        )}
-        style={{
-          opacity: headerOpacity,
-          y: headerY,
-        }}
-      >
-        {/* Background pattern */}
-        <div className="absolute inset-0 z-0 opacity-10 overflow-hidden">
-          <div className="absolute -inset-[10%] grid grid-cols-10 gap-5">
-            {Array(100)
-              .fill(0)
-              .map((_, i) => (
-                <motion.div
-                  key={i}
-                  className={cn(
-                    "aspect-square rounded-full",
-                    isDark ? "bg-white" : "bg-black"
-                  )}
-                  initial={{ opacity: 0.1 + Math.random() * 0.1 }}
-                  animate={{
-                    opacity: [
-                      0.1 + Math.random() * 0.1,
-                      0.2 + Math.random() * 0.1,
-                      0.1 + Math.random() * 0.1,
-                    ],
-                  }}
-                  transition={{
-                    duration: 2 + Math.random() * 3,
-                    repeat: Infinity,
-                    repeatType: "reverse",
-                  }}
-                />
-              ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="container max-w-4xl mx-auto z-10 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-          >
-            <Tag
+    <Providers>
+      <div className="min-h-screen bg-background">
+        {/* Hero Section */}
+        <section
+          className={cn(
+            "pt-28 pb-16 px-4 text-center relative overflow-hidden",
+            isDark ? "bg-black/80" : "bg-white"
+          )}
+        >
+          <div className="absolute inset-0 z-0">
+            <div
               className={cn(
-                "h-10 w-10 mx-auto mb-4",
-                isDark ? "text-white" : "text-black"
+                "absolute inset-0",
+                isDark
+                  ? "bg-gradient-to-b from-indigo-900/20 via-black/50 to-black"
+                  : "bg-gradient-to-b from-indigo-50/50 via-white/80 to-white"
               )}
             />
-          </motion.div>
+          </div>
 
-          <motion.h1
-            className={cn(
-              "text-4xl sm:text-5xl md:text-6xl font-bold mb-4",
-              "text-transparent bg-clip-text bg-gradient-to-r",
-              isDark ? "from-white to-white/70" : "from-black to-gray-700"
-            )}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
-          >
-            Explore Categories
-          </motion.h1>
-
-          <motion.p
-            className={cn(
-              "text-lg md:text-xl max-w-2xl mx-auto mb-8",
-              isDark ? "text-gray-300" : "text-gray-700"
-            )}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          >
-            Browse through our collection of expertly curated categories, each
-            filled with insightful articles and tutorials.
-          </motion.p>
-
-          {/* Search Bar */}
-          <motion.div
-            className="max-w-lg mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3, ease: [0.23, 1, 0.32, 1] }}
-          >
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search categories..."
+          <div className="container relative z-10 mx-auto max-w-5xl">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-6"
+            >
+              <span
                 className={cn(
-                  "pl-10 py-6 pr-4 rounded-full bg-transparent",
+                  "inline-block px-4 py-1.5 rounded-full text-sm font-medium mb-4",
                   isDark
-                    ? "border-white/20 focus-visible:border-white/40"
-                    : "border-gray-300 focus-visible:border-gray-400"
+                    ? "bg-indigo-500/10 text-indigo-300"
+                    : "bg-indigo-50 text-indigo-600"
                 )}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2"
               >
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
+                Explore Content by Topic
+              </span>
 
-      {/* Categories Grid */}
-      <div className={cn("py-16 px-4", isDark ? "bg-black" : "bg-white")}>
-        <div className="container max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {isLoading ? (
-              // Loading skeletons
-              Array(8)
-                .fill(0)
-                .map((_, idx) => (
-                  <Skeleton
-                    key={idx}
-                    className={cn(
-                      "h-[300px] rounded-3xl",
-                      isDark ? "bg-gray-900" : "bg-gray-100"
-                    )}
-                  />
-                ))
-            ) : filteredCategories.length > 0 ? (
-              // Categories grid
-              filteredCategories.map((category, idx) => (
-                <motion.div
-                  key={category.slug}
-                  className="perspective-1000"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.5,
-                    delay: idx * 0.05,
-                    ease: [0.23, 1, 0.32, 1],
-                  }}
-                  onMouseEnter={() => handleMouseEnter(idx)}
-                  onMouseLeave={handleMouseLeave}
+              <h1
+                className={cn(
+                  "text-4xl md:text-5xl lg:text-6xl font-bold mb-6",
+                  isDark ? "text-white" : "text-gray-900"
+                )}
+              >
+                Browse All Categories
+              </h1>
+
+              <p
+                className={cn(
+                  "text-lg md:text-xl max-w-3xl mx-auto",
+                  isDark ? "text-gray-300" : "text-gray-600"
+                )}
+              >
+                Find articles, tutorials, and resources organized by topic.
+                Explore our collection of content categories to discover exactly
+                what you're looking for.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="max-w-xl mx-auto mt-10"
+            >
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search categories..."
+                  className={cn(
+                    "pl-10 h-12 rounded-full",
+                    isDark
+                      ? "bg-gray-900/60 border-gray-800"
+                      : "bg-white/90 border-gray-200"
+                  )}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Tag Filters */}
+        {allTags.length > 0 && (
+          <section
+            className={cn(
+              "py-6 border-b",
+              isDark ? "border-gray-800" : "border-gray-200"
+            )}
+          >
+            <div className="container mx-auto px-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "text-sm font-medium",
+                    isDark ? "text-gray-400" : "text-gray-600"
+                  )}
                 >
-                  <Link href={`/category/${category.slug}`}>
-                    <motion.div
-                      className={cn(
-                        "h-full rounded-3xl overflow-hidden cursor-pointer relative border",
-                        "transition-all duration-300 group",
-                        isDark
-                          ? "bg-gray-900/50 hover:bg-gray-900 border-gray-800"
-                          : "bg-white hover:bg-gray-50 border-gray-200",
-                        "p-6 flex flex-col"
-                      )}
-                      style={{
-                        boxShadow: isDark
-                          ? activeCategoryIdx === idx
-                            ? "0 20px 30px -10px rgba(0, 0, 0, 0.5)"
-                            : "0 10px 30px -15px rgba(0, 0, 0, 0.3)"
-                          : activeCategoryIdx === idx
-                          ? "0 20px 30px -10px rgba(0, 0, 0, 0.1)"
-                          : "0 10px 30px -15px rgba(0, 0, 0, 0.05)",
-                      }}
-                      animate={{
-                        rotateX: activeCategoryIdx === idx ? -5 : 0,
-                        rotateY: activeCategoryIdx === idx ? 5 : 0,
-                        translateZ: activeCategoryIdx === idx ? 20 : 0,
-                      }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 20,
-                      }}
-                    >
-                      {/* Category Icon or Featured Image */}
-                      <div
-                        className="mb-4 h-14 w-14 rounded-2xl flex items-center justify-center"
-                        style={{ backgroundColor: category.color || "#6366f1" }}
-                      >
-                        {category.icon ? (
-                          <Box className="h-6 w-6 text-white" />
-                        ) : (
-                          <Tag className="h-6 w-6 text-white" />
-                        )}
-                      </div>
+                  Filter by:
+                </span>
 
-                      {/* Category Content */}
-                      <div className="flex-1 flex flex-col">
-                        <h2
+                {allTags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={selectedTags.includes(tag) ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer text-sm py-1.5 hover:bg-primary/80 transition-colors",
+                      selectedTags.includes(tag) ? "bg-primary text-white" : ""
+                    )}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                    {selectedTags.includes(tag) && (
+                      <X className="ml-1 h-3 w-3" />
+                    )}
+                  </Badge>
+                ))}
+
+                {selectedTags.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedTags([])}
+                    className="text-sm"
+                  >
+                    Clear all
+                  </Button>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Categories Grid */}
+        <section className="container mx-auto px-4 py-16 pb-32">
+          {/* Results header */}
+          <div className="flex items-center justify-between mb-8">
+            <h2
+              className={cn(
+                "text-2xl font-bold",
+                isDark ? "text-white" : "text-gray-900"
+              )}
+            >
+              {isLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <>
+                  All Categories
+                  <span
+                    className={cn(
+                      "ml-2 text-base px-2 py-0.5 rounded-full",
+                      isDark
+                        ? "bg-gray-800 text-gray-300"
+                        : "bg-gray-100 text-gray-700"
+                    )}
+                  >
+                    {filteredCategories.length}
+                  </span>
+                </>
+              )}
+            </h2>
+          </div>
+
+          {/* Categories grid */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className={cn(
+                    "h-[180px] rounded-xl",
+                    isDark ? "bg-gray-800/30" : "bg-gray-100"
+                  )}
+                />
+              ))}
+            </div>
+          ) : filteredCategories.length === 0 ? (
+            <div className="text-center py-12">
+              <div
+                className={cn(
+                  "mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center",
+                  isDark ? "bg-gray-800/50" : "bg-gray-100"
+                )}
+              >
+                <Search
+                  className={cn(
+                    "h-6 w-6",
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  )}
+                />
+              </div>
+              <h3 className="text-xl font-medium mb-2">No categories found</h3>
+              <p
+                className={cn(
+                  isDark ? "text-gray-400" : "text-gray-500",
+                  "max-w-md mx-auto"
+                )}
+              >
+                We couldn't find any categories matching your search criteria.
+              </p>
+              {(searchQuery || selectedTags.length > 0) && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedTags([]);
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedTags.join(",")}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+              >
+                {filteredCategories.map((category, idx) => (
+                  <motion.div
+                    key={category.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.4,
+                      ease: [0.23, 1, 0.32, 1],
+                      delay: idx * 0.05,
+                    }}
+                  >
+                    <Link href={`/categories/${category.slug}`}>
+                      <div
+                        className={cn(
+                          "group h-full rounded-xl overflow-hidden border p-6",
+                          "transition-all duration-300 hover:shadow-lg",
+                          isDark
+                            ? "bg-gray-900/40 border-gray-800 hover:bg-gray-900/60"
+                            : "bg-white border-gray-200 hover:bg-gray-50/80"
+                        )}
+                      >
+                        {/* Category Icon */}
+                        <div
+                          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                          style={{
+                            backgroundColor: category.color || "#6366f1",
+                          }}
+                        >
+                          <TagIcon className="h-7 w-7 text-white" />
+                        </div>
+
+                        {/* Category Content */}
+                        <h3
                           className={cn(
-                            "text-xl font-bold mb-2 group-hover:text-primary transition-colors",
+                            "text-xl font-semibold mb-2 group-hover:text-primary transition-colors",
                             isDark ? "text-white" : "text-gray-900"
                           )}
                         >
                           {category.name}
-                        </h2>
+                        </h3>
 
-                        {category.description && (
-                          <p
-                            className={cn(
-                              "mb-4 line-clamp-3 text-sm flex-1",
-                              isDark ? "text-gray-400" : "text-gray-600"
-                            )}
-                          >
-                            {category.description}
-                          </p>
-                        )}
+                        <p
+                          className={cn(
+                            "line-clamp-2 text-sm mb-4",
+                            isDark ? "text-gray-400" : "text-gray-600"
+                          )}
+                        >
+                          {category.description ||
+                            `Browse articles in the ${category.name} category`}
+                        </p>
 
-                        {/* Article count */}
+                        {/* Category Info */}
                         <div
                           className={cn(
-                            "flex items-center justify-between mt-auto pt-4 text-sm border-t",
-                            isDark ? "border-gray-800" : "border-gray-100"
+                            "mt-auto flex justify-between items-center text-xs",
+                            isDark ? "text-gray-500" : "text-gray-500"
                           )}
                         >
                           <span
                             className={cn(
-                              isDark ? "text-gray-300" : "text-gray-700"
+                              "px-2 py-1 rounded",
+                              isDark ? "bg-gray-800" : "bg-gray-100"
                             )}
                           >
                             {category.articleCount || 0} Articles
                           </span>
-
-                          <ChevronRight
-                            className={cn(
-                              "h-4 w-4 transition-all transform",
-                              "group-hover:translate-x-1",
-                              isDark ? "text-gray-300" : "text-gray-700"
-                            )}
-                          />
                         </div>
                       </div>
-                    </motion.div>
-                  </Link>
-                </motion.div>
-              ))
-            ) : (
-              // No categories found
-              <div className="col-span-full text-center py-12">
-                <div
-                  className={cn(
-                    "mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center",
-                    isDark ? "bg-gray-900" : "bg-gray-100"
-                  )}
-                >
-                  <Search
-                    className={cn(
-                      "h-6 w-6",
-                      isDark ? "text-gray-400" : "text-gray-600"
-                    )}
-                  />
-                </div>
-                <h3 className="text-xl font-medium mb-2">
-                  No categories found
-                </h3>
-                <p className={cn(isDark ? "text-gray-400" : "text-gray-600")}>
-                  Try adjusting your search or filter to find what you're
-                  looking for
-                </p>
-                <Button
-                  className="mt-4"
-                  variant="outline"
-                  onClick={() => setSearchQuery("")}
-                >
-                  Clear search
-                </Button>
-              </div>
-            )}
-          </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </section>
+
+        {/* Category Navigation Dock */}
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+          <MacOSDock currentPath="/categories" />
         </div>
       </div>
-
-      {/* MacOS Dock */}
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-        <MacOSDock currentPath="/categories" />
-      </div>
-    </div>
+    </Providers>
   );
 }

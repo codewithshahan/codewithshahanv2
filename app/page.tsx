@@ -1,25 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import Navbar from "@/components/Navbar";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import Footer from "@/components/Footer";
 import FeaturedArticle from "@/components/FeaturedArticle";
 import ArticlePreview from "@/components/ArticlePreview";
 import SearchBar from "@/components/SearchBar";
-import EbookBanner from "@/components/EbookBanner";
-import MusicPlayer from "@/components/MusicPlayer";
 import { useToast } from "@/components/ui/use-toast";
 import { ArticleList } from "@/components/ArticleList";
 import { performance } from "@/lib/performance";
 import { Providers } from "@/components/providers";
-import Link from "next/link";
 import { CONTACT, STORE } from "@/lib/routes";
-import { ApiClient } from "@/services/apiClient";
+import { SimplifiedHashnodeApi } from "@/services/hashnodeApi";
 import { HashnodeArticle } from "@/services/articleCacheService";
-import { TrendingTags } from "@/components/TrendingTags";
+import TrendingTags from "@/components/TrendingTags";
+import Newsletter from "@/components/Newsletter";
+import RightSidebar from "@/components/sidebar/RightSidebar";
+import GlassCard from "@/components/GlassCard";
 
-// Define type for the ArticleList component's expected Article format
 interface ArticleListArticle {
   title: string;
   slug: string;
@@ -43,18 +41,13 @@ interface ArticleListArticle {
   }>;
 }
 
-export default async function Home() {
+export default function HomePage() {
   const [loading, setLoading] = useState(true);
-  const [articles, setArticles] = useState<any[]>([]);
+  const [articles, setArticles] = useState<HashnodeArticle[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<HashnodeArticle[]>([]);
   const { toast } = useToast();
-  const headerRef = useRef<HTMLDivElement>(null);
-
-  // Parallax scrolling effect
-  const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, -100]);
 
   // Track page load performance
   useEffect(() => {
@@ -64,20 +57,19 @@ export default async function Home() {
 
   const loadArticles = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await ApiClient.articles.getArticles({
-        limit: 10,
-        cursor: undefined,
-      });
-      if (data && data.articles) {
-        setArticles(data.articles);
+      const result = await SimplifiedHashnodeApi.fetchArticles(20);
+      setArticles(result.articles);
+
+      if (result.articles.length === 0) {
+        setError(
+          "No articles found. Please check your Hashnode configuration."
+        );
       } else {
-        setArticles([]);
+        setError(null);
       }
     } catch (err) {
+      console.error("Error fetching articles:", err);
       setError("Failed to load articles. Please try again later.");
-      setArticles([]);
     } finally {
       setLoading(false);
     }
@@ -93,9 +85,10 @@ export default async function Home() {
       const filtered = articles.filter(
         (article) =>
           article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.description.toLowerCase().includes(searchQuery.toLowerCase())
+          (article.brief &&
+            article.brief.toLowerCase().includes(searchQuery.toLowerCase()))
       );
-      setSearchResults(filtered.slice(0, 3)); // Limit to 3 results
+      setSearchResults(filtered.slice(0, 3));
     } else {
       setSearchResults([]);
     }
@@ -103,6 +96,11 @@ export default async function Home() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
   };
 
   const containerVariants = {
@@ -127,221 +125,169 @@ export default async function Home() {
     },
   };
 
-  const fetchArticles = async (options: { cursor?: string }) => {
-    try {
-      const response = await ApiClient.articles.getArticles({
-        limit: 10,
-        cursor: options.cursor,
-      });
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
-      // Transform HashnodeArticle[] to the format expected by ArticleList
-      return {
-        articles: response.articles.map(
-          (article: HashnodeArticle): ArticleListArticle => ({
-            title: article.title,
-            slug: article.slug,
-            coverImage: article.coverImage || "",
-            description: article.brief || "",
-            readingTime: article.readingTime || "5 min read",
-            publishedAt: article.publishedAt || new Date().toISOString(),
-            author: {
-              name: article.author?.name || "Unknown",
-              username:
-                article.author?.name?.toLowerCase().replace(/\s+/g, "") ||
-                "unknown",
-              avatar: article.author?.image || "/placeholder-avatar.png",
-            },
-            category: {
-              name: article.tags?.[0]?.name || "Uncategorized",
-              slug: article.tags?.[0]?.slug || "uncategorized",
-            },
-            tags:
-              article.tags?.map((tag) => ({
-                name: tag.name,
-                slug: tag.slug || tag.name.toLowerCase().replace(/\s+/g, "-"),
-                color: tag.color || "#007AFF",
-              })) || [],
-          })
-        ),
-        hasMore: response.hasMore,
-        endCursor: response.nextCursor,
-      };
-    } catch (error) {
-      console.error("Error fetching articles:", error);
-      return { articles: [], hasMore: false };
-    }
-  };
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-4">Error Loading Content</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Providers>
-      <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
+      <main className="min-h-screen bg-gradient-to-b from-background/5 to-background/80 relative overflow-hidden">
+        {/* Particle Background */}
+        <div className="absolute inset-0 bg-grid-small-white opacity-5" />
 
-        <main className="flex-grow pt-16">
-          {/* eBook Banner */}
-          <EbookBanner />
-
-          {/* Add scroll padding to prevent content from being hidden under the sticky banner */}
-          <div
-            className="container hero px-4 mx-auto pt-8 scroll-mt-64"
-            id="main-content"
-          >
-            {/* Hero Section */}
-            <motion.div
-              ref={headerRef}
-              className="mb-16 text-center relative z-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              style={{ y }}
-            >
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 text-gradient">
-                Welcome to <span className="text-primary">CodeWithShahan</span>
-              </h1>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-                Discover articles and tutorials about full-stack development,
-                clean code, and the latest AI tech trends.
-              </p>
-
-              {/* Navigation buttons */}
-              <div className="flex justify-center gap-4 mb-8">
-                <Link
-                  href={STORE}
-                  className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors"
-                >
-                  Browse Store
-                </Link>
-                <Link
-                  href={CONTACT}
-                  className="bg-secondary text-secondary-foreground px-6 py-3 rounded-md font-medium hover:bg-secondary/80 transition-colors"
-                >
-                  Contact Me
-                </Link>
-              </div>
-
-              {/* Search Section with Live Results */}
-              <div className="relative max-w-md mx-auto">
-                <SearchBar
-                  className="glass-card"
-                  onChange={handleSearch}
-                  value={searchQuery}
-                />
-
-                {/* Live Search Results */}
-                {searchResults.length > 0 && (
-                  <motion.div
-                    className="absolute mt-2 w-full bg-background/80 backdrop-blur-lg rounded-lg shadow-lg z-50 overflow-hidden border border-border"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
-                    <ul className="py-2">
-                      {searchResults.map((article) => (
-                        <motion.li
-                          key={article.slug}
-                          className="px-4 py-2 hover:bg-secondary/50 transition-colors"
-                          whileHover={{ x: 5 }}
-                        >
-                          <a
-                            href={`/article/${article.slug}`}
-                            className="block"
-                            onClick={() => setSearchQuery("")}
-                          >
-                            <p className="font-medium text-sm">
-                              {article.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {article.readingTime}
-                            </p>
-                          </a>
-                        </motion.li>
-                      ))}
-                    </ul>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Trending Tags */}
-              <motion.div
-                className="mt-8 max-w-xl mx-auto"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.5,
-                  duration: 0.5,
-                  ease: [0.23, 1, 0.32, 1],
-                }}
-              >
-                <TrendingTags variant="pills" limit={8} />
-              </motion.div>
-            </motion.div>
-
-            {loading ? (
-              <div className="py-20 text-center">
-                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="mt-4 text-muted-foreground">
-                  Loading articles...
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          className="container mx-auto px-4 py-8 relative z-10"
+        >
+          {/* Hero Section with Enhanced Glass Card */}
+          <motion.section variants={itemVariants} className="text-center mb-16">
+            <GlassCard className="p-8 max-w-4xl mx-auto shine-effect">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 opacity-50 blur-3xl" />
+                <h1 className="text-5xl font-bold mb-6 text-gradient-primary relative">
+                  Welcome to CodeWithShahan
+                </h1>
+                <p className="text-xl text-muted-foreground max-w-2xl mx-auto relative">
+                  Discover the latest insights in technology, programming, and
+                  digital innovation.
                 </p>
               </div>
-            ) : error ? (
-              <div className="py-20 text-center">
-                <p className="text-destructive">{error}</p>
-                <button
-                  onClick={loadArticles}
-                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md"
-                >
-                  Try Again
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Featured Article */}
-                {articles.length > 0 && articles[3] && (
-                  <FeaturedArticle article={articles[3]} />
-                )}
+            </GlassCard>
+          </motion.section>
 
-                {/* Music Player */}
-                <MusicPlayer />
+          {/* Search Section with Enhanced Glass Card */}
+          <motion.section variants={itemVariants} className="mb-12">
+            <GlassCard className="p-4 shine-effect">
+              <SearchBar onChange={handleSearch} value={searchQuery} />
+            </GlassCard>
+          </motion.section>
 
-                {/* Latest Articles */}
-                <div className="mb-16">
-                  <h2 className="text-3xl font-bold mb-8 text-center">
-                    Latest Articles
-                  </h2>
-                  <ArticleList fetchArticles={fetchArticles} />
-                </div>
+          {/* Featured Article with Enhanced Glass Card */}
+          {articles.length > 0 && (
+            <motion.section variants={itemVariants} className="mb-16">
+              <GlassCard className="p-6 shine-effect">
+                <FeaturedArticle
+                  article={{
+                    title: articles[0].title,
+                    slug: articles[0].slug,
+                    coverImage: articles[0].coverImage || "",
+                    description: articles[0].brief || "",
+                    readingTime: articles[0].readingTime || "5 min read",
+                    publishedAt:
+                      articles[0].publishedAt || new Date().toISOString(),
+                    author: {
+                      name: articles[0].author?.name || "Unknown",
+                      username:
+                        articles[0].author?.name
+                          ?.toLowerCase()
+                          .replace(/\s+/g, "") || "unknown",
+                      avatar:
+                        articles[0].author?.image || "/placeholder-avatar.png",
+                    },
+                    category: {
+                      name: articles[0].tags?.[0]?.name || "Uncategorized",
+                      slug: articles[0].tags?.[0]?.slug || "uncategorized",
+                    },
+                    tags:
+                      articles[0].tags?.map((tag) => ({
+                        name: tag.name,
+                        slug:
+                          tag.slug ||
+                          tag.name.toLowerCase().replace(/\s+/g, "-"),
+                        color: tag.color || "#007AFF",
+                      })) || [],
+                  }}
+                />
+              </GlassCard>
+            </motion.section>
+          )}
 
-                {/* Newsletter Section */}
-                <div className="glass-card text-center p-8 md:p-12 my-16">
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                    Subscribe to my newsletter
-                  </h2>
-                  <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-                    Get the latest articles, tutorials, and updates delivered
-                    straight to your inbox.
-                  </p>
-                  <form className="flex flex-col sm:flex-row max-w-md mx-auto">
-                    <input
-                      type="email"
-                      placeholder="Your email address"
-                      className="flex-1 px-4 py-3 rounded-l-md bg-secondary text-foreground outline-none focus:ring-2 focus:ring-primary sm:rounded-r-none"
-                      required
-                    />
-                    <button
-                      type="submit"
-                      className="bg-primary text-primary-foreground px-6 py-3 rounded-md hover:bg-primary/90 transition-colors mt-2 sm:mt-0 sm:rounded-l-none"
-                    >
-                      Subscribe
-                    </button>
-                  </form>
-                </div>
-              </>
-            )}
+          {/* Main Content Grid with Enhanced Glass Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column - Articles */}
+            <motion.div
+              variants={itemVariants}
+              className="lg:col-span-8 space-y-8"
+            >
+              <GlassCard className="p-6 shine-effect">
+                <ArticleList
+                  fetchArticles={async ({ cursor }) => {
+                    const result = await SimplifiedHashnodeApi.fetchArticles(
+                      10
+                    );
+                    return {
+                      articles: result.articles.map((article) => ({
+                        title: article.title,
+                        slug: article.slug,
+                        coverImage: article.coverImage || "",
+                        description: article.brief || "",
+                        readingTime: article.readingTime || "5 min read",
+                        publishedAt:
+                          article.publishedAt || new Date().toISOString(),
+                        author: {
+                          name: article.author?.name || "Unknown",
+                          username:
+                            article.author?.name
+                              ?.toLowerCase()
+                              .replace(/\s+/g, "") || "unknown",
+                          avatar:
+                            article.author?.image || "/placeholder-avatar.png",
+                        },
+                        category: {
+                          name: article.tags?.[0]?.name || "Uncategorized",
+                          slug: article.tags?.[0]?.slug || "uncategorized",
+                        },
+                        tags:
+                          article.tags?.map((tag) => ({
+                            name: tag.name,
+                            slug:
+                              tag.slug ||
+                              tag.name.toLowerCase().replace(/\s+/g, "-"),
+                            color: tag.color || "#007AFF",
+                          })) || [],
+                      })),
+                      hasMore: result.hasMore,
+                      cursor: result.cursor,
+                    };
+                  }}
+                />
+              </GlassCard>
+            </motion.div>
+
+            {/* Right Sidebar */}
+            <motion.div
+              variants={itemVariants}
+              className="lg:col-span-4 space-y-8"
+            >
+              <GlassCard className="p-6 shine-effect">
+                <TrendingTags />
+              </GlassCard>
+              <GlassCard className="p-6 shine-effect">
+                <Newsletter />
+              </GlassCard>
+            </motion.div>
           </div>
-        </main>
+        </motion.div>
 
         <Footer />
-      </div>
+      </main>
     </Providers>
   );
 }

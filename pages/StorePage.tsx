@@ -20,7 +20,7 @@ const StorePage = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
-      <main className="flex-grow pt-24">
+      <main className="flex-grow">
         {/* Hero Section */}
         <div className="container mx-auto px-4 mb-20 relative">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">

@@ -5,7 +5,6 @@ import { articleService } from "@/services/articleService";
 import LoadingIcon from "@/components/ui/LoadingIcon";
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
-import { ApiClient } from "@/services/apiClient";
 
 // Dynamically import the Navbar and Footer for better performance
 const Navbar = dynamic(() => import("@/components/Navbar"), {
@@ -57,8 +56,7 @@ export async function generateMetadata({
   params,
 }: ArticlePageProps): Promise<Metadata> {
   try {
-    // Use the unified API client with caching
-    const article = await ApiClient.articles.getArticle(params.slug);
+    const article = await articleService.fetchArticle(params.slug);
 
     if (!article) {
       return {
@@ -69,10 +67,10 @@ export async function generateMetadata({
 
     return {
       title: article.title,
-      description: article.brief || article.title,
+      description: article.description || article.title,
       openGraph: {
         title: article.title,
-        description: article.brief || article.title,
+        description: article.description || article.title,
         images: [
           {
             url: article.coverImage,
@@ -87,7 +85,7 @@ export async function generateMetadata({
       twitter: {
         card: "summary_large_image",
         title: article.title,
-        description: article.brief || article.title,
+        description: article.description || article.title,
         images: [article.coverImage],
       },
     };
@@ -105,16 +103,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = params;
 
   try {
-    // Fetch article data using the unified API client
-    const article = await ApiClient.articles.getArticle(slug);
+    // Fetch article data
+    const article = await articleService.fetchArticle(slug);
 
     // Return 404 if article not found
     if (!article) {
       notFound();
     }
-
-    // Get comment count
-    const commentCount = await ApiClient.articles.getCommentCount(slug);
 
     // Create props for the client component with proper markdown content
     const serializedArticle = {
@@ -125,7 +120,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       // Make sure we're using the markdown content for our renderer
       content: article.content || "",
       // Add comment count for the comments feature
-      commentCount: commentCount,
+      commentCount: (await articleService.getArticleCommentCount?.(slug)) || 0,
       // Make sure we include extracted table of contents if available
       tableOfContents: article.tableOfContents || [],
     };

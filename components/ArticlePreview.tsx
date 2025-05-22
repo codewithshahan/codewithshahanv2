@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect } from "react";
 import GlassCard from "./GlassCard";
 import TagPill from "./TagPill";
 import CategoryBadge from "./CategoryBadge";
@@ -45,6 +46,64 @@ const ArticlePreview: React.FC<ArticlePreviewProps> = ({
 
   // Use default image if coverImage is empty or null
   const coverImageSrc = article.coverImage || "/images/default-product.jpg";
+
+  // Add structured data for SEO
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Create BlogPosting schema for the article preview
+      const schema = {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        headline: article.title,
+        description: article.description,
+        image: article.coverImage,
+        author: {
+          "@type": "Person",
+          name: article.author.name,
+          url: `https://codewithshahan.com/author/${article.author.username}`,
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "CodeWithShahan",
+          logo: {
+            "@type": "ImageObject",
+            url: "https://codewithshahan.com/icons/logo/icon.svg",
+          },
+        },
+        url: `https://codewithshahan.com/article/${article.slug}`,
+        datePublished: article.publishedAt,
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": `https://codewithshahan.com/article/${article.slug}`,
+        },
+        keywords: article.tags.map((tag) => tag.name).join(", "),
+      };
+
+      // Create a unique ID for this article preview's structured data
+      const scriptId = `article-structured-data-${article.slug}`;
+
+      // Check if script already exists to avoid duplication
+      const existingScript = document.getElementById(scriptId);
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // Create and add the script element
+      const script = document.createElement("script");
+      script.type = "application/ld+json";
+      script.id = scriptId;
+      script.text = JSON.stringify(schema);
+      document.head.appendChild(script);
+
+      // Clean up on unmount
+      return () => {
+        const scriptToRemove = document.getElementById(scriptId);
+        if (scriptToRemove) {
+          scriptToRemove.remove();
+        }
+      };
+    }
+  }, [article]);
 
   return (
     <GlassCard className={`h-full ${featured ? "p-0 overflow-hidden" : ""}`}>

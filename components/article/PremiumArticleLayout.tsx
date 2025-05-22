@@ -35,7 +35,6 @@ import TableOfContents from "./TableOfContents";
 import { formatDate } from "@/lib/utils";
 import NextGenComments from "./NextGenComments";
 import ArticleHero from "./3DArticleHero";
-import { Tag as ArticleTag } from "@/services/tagsApi";
 
 interface ArticleData {
   id: string;
@@ -55,7 +54,11 @@ interface ArticleData {
     image?: string;
     bio?: string;
   };
-  tags?: ArticleTag[];
+  tags?: {
+    name: string;
+    slug: string;
+    color?: string;
+  }[];
   series?: {
     name: string;
     slug: string;
@@ -165,31 +168,67 @@ const PremiumArticleLayout: React.FC<PremiumArticleLayoutProps> = ({
     setHeadings(nestedHeadings);
   }, [article.content, article.tableOfContents, isMounted]);
 
-  // Add a new effect to fetch related categories if needed
+  // Add structured data for SEO
   useEffect(() => {
-    const fetchRelatedCategories = async () => {
-      if (article.slug && (!article.tags || article.tags.length === 0)) {
-        try {
-          // Fetch from our standardized API route
-          const response = await fetch(`/api/articles/${article.slug}/tags`);
+    if (typeof window !== "undefined" && article) {
+      // Create BlogPosting schema
+      const schema = {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        headline: article.title,
+        description: article.description || "",
+        image: article.coverImage,
+        url: `https://codewithshahan.com/article/${article.slug}`,
+        datePublished: article.publishedAt,
+        dateModified: article.updatedAt || article.publishedAt,
+        author: {
+          "@type": "Person",
+          name: article.author?.name || "CodeWithShahan",
+          image: article.author?.image || "",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "CodeWithShahan",
+          logo: {
+            "@type": "ImageObject",
+            url: "https://codewithshahan.com/icons/logo/icon.svg",
+          },
+        },
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": `https://codewithshahan.com/article/${article.slug}`,
+        },
+        wordCount: article.content?.split(/\s+/).length || 0,
+        articleBody: article.content?.replace(/[#*`_]/g, "") || "",
+        keywords: article.tags?.map((tag) => tag.name).join(", ") || "",
+      };
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data && data.data.tags) {
-              // Update tags in the article object
-              article.tags = data.data.tags;
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching related categories:", error);
-        }
+      // Create script element for structured data
+      const script = document.createElement("script");
+      script.type = "application/ld+json";
+      script.text = JSON.stringify(schema);
+
+      // Remove any existing script tags with the same ID to avoid duplicates
+      const existingScript = document.getElementById("article-structured-data");
+      if (existingScript) {
+        existingScript.remove();
       }
-    };
 
-    if (isMounted) {
-      fetchRelatedCategories();
+      // Add ID to the script tag for easy reference
+      script.id = "article-structured-data";
+      document.head.appendChild(script);
+
+      // Clean up on unmount
+      return () => {
+        const scriptToRemove = document.getElementById(
+          "article-structured-data"
+        );
+        if (scriptToRemove) {
+          scriptToRemove.remove();
+        }
+      };
     }
-  }, [article, isMounted]);
+  }, [article]);
 
   // Handle like action
   const handleLike = () => {
@@ -613,24 +652,17 @@ const PremiumArticleLayout: React.FC<PremiumArticleLayoutProps> = ({
                       : "bg-white border border-gray-100 shadow-lg"
                   }`}
                 >
-                  <h3 className="text-lg font-medium mb-4">
-                    Related Categories
-                  </h3>
+                  <h3 className="text-lg font-medium mb-4">Related topics</h3>
                   <div className="flex flex-wrap gap-2">
                     {article.tags.map((tag) => (
                       <Link
                         key={tag.slug}
-                        href={`/category/${tag.slug}`}
+                        href={`/tag/${tag.slug}`}
                         className={`px-3 py-1.5 rounded-full text-sm ${
-                          isDark && !tag.color
+                          isDark
                             ? "bg-gray-800 hover:bg-gray-700"
-                            : !tag.color
-                            ? "bg-gray-100 hover:bg-gray-200"
-                            : "text-white hover:opacity-90"
+                            : "bg-gray-100 hover:bg-gray-200"
                         }`}
-                        style={
-                          tag.color ? { backgroundColor: tag.color } : undefined
-                        }
                       >
                         {tag.name}
                       </Link>

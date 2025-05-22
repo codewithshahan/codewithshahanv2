@@ -63,15 +63,12 @@ const Product3DCard: React.FC<Product3DCardProps> = ({
 
   // Handle mouse movement for tilt effect
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-
+    if (!cardRef.current || window.innerWidth < 1024) return;
     const rect = cardRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-
-    // Calculate offset from center
-    x.set(e.clientX - centerX);
-    y.set(e.clientY - centerY);
+    x.set((e.clientX - centerX) / 6); // reduce tilt sensitivity
+    y.set((e.clientY - centerY) / 6);
   };
 
   // Handle mouse leave to reset position
@@ -82,22 +79,30 @@ const Product3DCard: React.FC<Product3DCardProps> = ({
   };
 
   return (
-    <Link href={`/product/${slug || id}`} className="block">
+    <Link
+      href={`/product/${slug || id}`}
+      className="block group focus:outline-none focus:ring-2 focus:ring-primary/60 rounded-3xl"
+    >
       <motion.div
         ref={cardRef}
-        className="h-full relative rounded-2xl overflow-hidden flex flex-col bg-card"
+        className="relative rounded-3xl overflow-hidden flex flex-col bg-card/80 shadow-xl border border-primary/10 backdrop-blur-xl transition-all duration-300 min-h-[420px]"
         style={{
-          rotateX,
-          rotateY,
+          // Only apply tilt on desktop
+          rotateX:
+            typeof window !== "undefined" && window.innerWidth >= 1024
+              ? rotateX.get()
+              : 0,
+          rotateY:
+            typeof window !== "undefined" && window.innerWidth >= 1024
+              ? rotateY.get()
+              : 0,
           scale,
-          transformStyle: "preserve-3d",
-          perspective: "1000px",
           boxShadow: useTransform(
             shadowOpacity,
-            (opacity) => `0px 5px 20px -5px rgba(0, 0, 0, ${opacity}), 
-                         0px 10px 30px -10px rgba(var(--primary), ${
-                           opacity * 0.5
-                         })`
+            (opacity) =>
+              `0px 8px 32px -8px rgba(0,0,0,${
+                opacity + 0.1
+              }), 0px 0px 0px 2px rgba(80,120,255,${isHovered ? 0.1 : 0})`
           ),
         }}
         onMouseMove={handleMouseMove}
@@ -106,12 +111,11 @@ const Product3DCard: React.FC<Product3DCardProps> = ({
         transition={{ duration: 0.2 }}
       >
         {/* Glass overlay and cards */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <div className="absolute inset-0 border border-primary/10 rounded-2xl" />
-        <div className="absolute inset-[1px] rounded-2xl bg-gradient-to-br from-card via-card to-card/80" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background/80 to-accent/10 opacity-80 pointer-events-none" />
+        <div className="absolute inset-0 border border-primary/10 rounded-3xl pointer-events-none" />
 
         {/* Image container with transform */}
-        <div className="relative aspect-[4/3] overflow-hidden rounded-t-2xl">
+        <div className="relative aspect-[5/3] overflow-hidden rounded-t-3xl">
           <motion.div
             className="w-full h-full"
             style={{ translateY: imgTranslateY }}
@@ -120,27 +124,25 @@ const Product3DCard: React.FC<Product3DCardProps> = ({
               src={thumbnailUrl || "/images/products/placeholder.jpg"}
               alt={name}
               fill
-              className="object-cover object-center rounded-t-xl"
+              className="object-cover object-center rounded-t-3xl group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               unoptimized
             />
-
             {/* Badges */}
-            <div className="absolute top-3 left-3 flex flex-col gap-2">
+            <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
               {popular && (
-                <div className="px-2.5 py-1 bg-accent text-white text-xs font-medium rounded-full backdrop-blur-sm">
+                <div className="px-3 py-1 bg-accent text-white text-xs font-semibold rounded-full shadow backdrop-blur-md">
                   Popular
                 </div>
               )}
               {isNew && (
-                <div className="px-2.5 py-1 bg-emerald-500 text-white text-xs font-medium rounded-full backdrop-blur-sm">
+                <div className="px-3 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-full shadow backdrop-blur-md">
                   New
                 </div>
               )}
             </div>
-
             {/* Price tag */}
-            <div className="absolute bottom-3 right-3 bg-primary text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg backdrop-blur-sm">
+            <div className="absolute top-4 right-4 bg-primary text-white px-4 py-1.5 rounded-full text-base font-bold shadow-lg backdrop-blur-md z-10">
               {formattedPrice || `$${price}`}
             </div>
           </motion.div>
@@ -148,62 +150,61 @@ const Product3DCard: React.FC<Product3DCardProps> = ({
 
         {/* Content */}
         <motion.div
-          className="flex-grow p-5 flex flex-col z-10 bg-card/90 rounded-b-2xl"
+          className="flex-grow px-6 pt-5 pb-6 flex flex-col z-10 bg-card/90 rounded-b-3xl"
           style={{ translateY: contentTranslateY }}
         >
-          <div className="flex justify-between items-start">
-            <h3 className="font-bold text-lg mb-2 line-clamp-2">{name}</h3>
-            <motion.div
-              className="bg-primary/10 p-1.5 rounded-full text-primary"
-              style={{ translateX: arrowTranslateX }}
-            >
-              <ArrowUpRight size={16} />
-            </motion.div>
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-bold text-xl mb-0 line-clamp-1 text-foreground">
+              {name}
+            </h3>
           </div>
-
           {description && (
-            <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
+            <p className="text-muted-foreground text-base mb-4 line-clamp-2">
               {description.replace(/<[^>]*>?/gm, "").substring(0, 120)}
               ...
             </p>
           )}
-
-          <div className="mt-auto">
-            {/* Categories */}
-            {categories && categories.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {categories.slice(0, 2).map((category, i) => (
-                  <span
+          {/* Categories */}
+          {categories && categories.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {categories.slice(0, 2).map((category, i) => (
+                <span
+                  key={i}
+                  className="text-xs px-3 py-1 bg-primary/10 rounded-full font-medium text-primary/80"
+                >
+                  {category}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Rating */}
+          {rating && (
+            <div className="flex items-center mb-2">
+              <div className="flex mr-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star
                     key={i}
-                    className="text-xs px-2 py-1 bg-primary/10 rounded-full"
-                  >
-                    {category}
-                  </span>
+                    size={16}
+                    className={`$ {
+                      i < Math.floor(rating)
+                        ? "text-amber-500 fill-amber-500"
+                        : "text-gray-300"
+                    }`}
+                  />
                 ))}
               </div>
-            )}
-
-            {/* Rating */}
-            {rating && (
-              <div className="flex items-center">
-                <div className="flex mr-2">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      size={14}
-                      className={`${
-                        i < Math.floor(rating)
-                          ? "text-amber-500 fill-amber-500"
-                          : "text-gray-300"
-                      }`}
-                    />
-                  ))}
-                </div>
+              {reviewCount && (
                 <span className="text-xs text-muted-foreground">
-                  {rating.toFixed(1)} ({reviewCount || 0} reviews)
+                  ({reviewCount})
                 </span>
-              </div>
-            )}
+              )}
+            </div>
+          )}
+          {/* Floating View/Buy Button */}
+          <div className="absolute bottom-6 right-6 w-auto">
+            <span className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-full font-semibold shadow-lg hover:bg-primary/90 transition-colors text-base cursor-pointer">
+              View <ArrowUpRight size={18} />
+            </span>
           </div>
         </motion.div>
       </motion.div>

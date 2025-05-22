@@ -1,4 +1,4 @@
-import { ApiClient } from "@/services/apiClient";
+import { fetchArticles } from "@/services/api";
 import { fetchProducts } from "@/services/gumroad";
 import {
   Code2,
@@ -75,35 +75,9 @@ export const getCategoryName = (slug: string): string => {
 // Function to fetch and merge unique categories
 export const getUniqueCategories = async (): Promise<Category[]> => {
   try {
-    // Try to get categories from the new API first
-    try {
-      const allCategories = await ApiClient.categories.getAllCategories();
-
-      if (allCategories && allCategories.length > 0) {
-        console.log("Using unified CategoryAPI data:", allCategories.length);
-
-        // Format the data to match our expected Category interface
-        return allCategories.map((category) => ({
-          name: getCategoryName(category.name),
-          slug: category.slug,
-          icon: categoryIcons[category.slug] || Lightbulb,
-          description:
-            category.description ||
-            categoryDescriptions[category.slug] ||
-            `Explore ${category.name} articles and resources`,
-          articleCount: category.articleCount || 0,
-          productCount: 0, // We'll update this with product counts below
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching from CategoryAPI, falling back:", error);
-      // Continue with fallback implementation
-    }
-
-    // Fallback implementation using separate API calls
     // Fetch articles and products in parallel
     const [articlesResponse, productsResponse] = await Promise.all([
-      ApiClient.articles.getArticles({ limit: 100 }),
+      fetchArticles(1),
       fetchProducts(),
     ]);
 

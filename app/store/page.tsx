@@ -10,6 +10,7 @@ import {
   useAnimation,
   useMotionValue,
   useSpring,
+  AnimatePresence,
 } from "framer-motion";
 import {
   ArrowRight,
@@ -31,6 +32,7 @@ import {
   Search,
   Sparkles,
   CircleAlert,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Balancer from "react-wrap-balancer";
@@ -48,6 +50,7 @@ import SectionTransition, {
   ParallaxSection,
   RevealText,
 } from "@/components/SectionTransition";
+import FloatingGumroadCard from "@/components/category/FloatingGumroadCard";
 
 // Dynamically import particle system for better performance
 const ParticleSystem = dynamic(() => import("@/components/ParticleSystem"), {
@@ -161,6 +164,10 @@ export default function StorePage() {
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<string>("newest");
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [productModalIndex, setProductModalIndex] = useState<number | null>(
+    null
+  );
 
   // Ref hooks - keep these together
   const bookSectionRef = useRef<HTMLDivElement>(null);
@@ -336,6 +343,18 @@ export default function StorePage() {
     setTheme("dark");
   }, [setTheme]);
 
+  // Handler to open product modal
+  const handleProductCardClick = (index: number) => {
+    setProductModalIndex(index);
+    setProductModalOpen(true);
+  };
+
+  // Handler to close product modal
+  const handleProductModalClose = () => {
+    setProductModalOpen(false);
+    setProductModalIndex(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -370,10 +389,15 @@ export default function StorePage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col bg-background relative"
+      className="min-h-screen flex flex-col bg-background relative overflow-x-hidden"
       onMouseMove={handleMouseMove}
     >
       <Navbar />
+
+      {/* Clean Code Challenge Banner at the very top */}
+      <div className="relative z-50 pt-20">
+        {featuredProduct && <Clean3DCodeBanner product={featuredProduct} />}
+      </div>
 
       <main className="flex-grow">
         {/* Ultra-Premium Vector Universe Background */}
@@ -787,202 +811,60 @@ export default function StorePage() {
         </div>
 
         {/* Immersive Hero section with 3D particles and dynamic lighting */}
-        <div className="relative overflow-hidden bg-gradient-to-b from-background/30 via-primary/5 to-background/30 pt-32 pb-20 z-[1]">
+        <div className="relative overflow-hidden pt-0 pb-10 z-[10]">
           {/* Advanced particle system */}
           <ParticleSystem />
 
-          {/* Subtle grid backdrop */}
-          <div className="absolute inset-0 bg-grid-small-white/[0.03] pointer-events-none" />
-
-          {/* Dynamic light sources */}
-          <motion.div
-            className="absolute -top-[30%] -left-[10%] w-[50%] h-[60%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-60 pointer-events-none z-10 blend-mode-screen"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.5, 0.3],
-              x: [0, 20, 0],
-              y: [0, -10, 0],
-            }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          />
-
-          <motion.div
-            className="absolute -bottom-[30%] -right-[10%] w-[60%] h-[60%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-accent/15 via-transparent to-transparent opacity-60 pointer-events-none z-10 blend-mode-screen"
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.2, 0.4, 0.2],
-              x: [0, -15, 0],
-              y: [0, 10, 0],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 3,
-            }}
-          />
-
-          <div className="container max-w-7xl mx-auto px-4 relative z-20">
+          <div className="container w-full max-w-4xl mx-auto px-4 relative z-10 flex flex-col items-center justify-center text-center min-h-[40vh]">
             <motion.div
-              className="text-center max-w-3xl mx-auto relative"
-              style={{ y: moveY, x: moveX }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.2, 0.65, 0.3, 0.9] }}
             >
-              <motion.div
-                className="inline-flex items-center px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-6 shadow-glow-sm"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-              >
+              <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-6 shadow-glow-sm">
                 <Sparkles className="mr-2 w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary/90">
                   Cutting-edge developer resources
                 </span>
-              </motion.div>
-
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 relative">
-                Premium Developer <GlowingTitle>Resources</GlowingTitle>
+              </div>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+                Premium Developer{" "}
+                <span className="text-primary">Resources</span>
               </h1>
-
-              <motion.p
-                className="text-xl text-muted-foreground mb-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
+              <p className="text-xl text-muted-foreground mb-8">
                 High-quality courses, e-books, and tools to elevate your
                 development skills and accelerate your career growth.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6 }}
-                className="flex flex-col sm:flex-row gap-4 justify-center"
-              >
-                <motion.a
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a
                   href="#products"
                   className="relative px-6 py-3 bg-primary text-white rounded-lg font-medium group overflow-hidden"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
                 >
-                  <motion.span
-                    className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [1, 0.9, 1],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  />
                   <span className="relative flex items-center justify-center">
                     Browse Resources
                     <ArrowDown className="ml-2 w-4 h-4 inline-block group-hover:translate-y-1 transition-transform" />
                   </span>
-                </motion.a>
-
-                <motion.a
-                  href="#clean-code-book"
-                  className="px-6 py-3 border border-primary/20 bg-background/50 backdrop-blur-sm text-foreground rounded-lg font-medium hover:border-primary/40 transition-colors"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <span className="flex items-center justify-center">
-                    <BookOpen className="mr-2 w-4 h-4 text-primary" />
-                    Bestseller
-                  </span>
-                </motion.a>
-              </motion.div>
-
-              {/* Repositioned Premium Resources Card - Right Side Floating */}
-              <div className="hidden lg:block absolute right-[-15rem] top-1/2 transform -translate-y-1/2">
-                <FloatingInteractiveElement delay={0.6}>
-                  <motion.div
-                    className="relative w-72 h-72 bg-gradient-to-br from-primary/30 via-secondary/20 to-primary/30 rounded-2xl p-1 backdrop-blur-sm border border-primary/20 rotate-3"
-                    whileHover={{
-                      scale: 1.05,
-                      rotate: 0,
-                      boxShadow: "0 0 40px rgba(var(--primary), 0.2)",
-                    }}
-                    transition={{ duration: 0.4 }}
+                </a>
+                {featuredProduct && (
+                  <a
+                    href="#clean-code-book"
+                    className="px-6 py-3 border border-primary/20 bg-background/50 backdrop-blur-sm text-foreground rounded-lg font-medium hover:border-primary/40 transition-colors"
                   >
-                    <div className="absolute inset-0 bg-background/80 rounded-2xl backdrop-blur-md" />
-                    <div className="relative h-full w-full flex flex-col justify-center items-center p-6 text-center">
-                      <Sparkles className="h-16 w-16 text-primary mb-4" />
-                      <h3 className="text-2xl font-bold mb-2">
-                        Premium Resources
-                      </h3>
-                      <p className="text-muted-foreground">
-                        Transform your development skills with our expertly
-                        crafted materials
-                      </p>
-                    </div>
-                  </motion.div>
-                </FloatingInteractiveElement>
-              </div>
-
-              {/* Floating code snippets */}
-              <div className="hidden lg:block">
-                <motion.div
-                  className="absolute left-[-5rem] top-20 w-40 sm:w-48 rounded-lg overflow-hidden shadow-xl border border-primary/10 backdrop-blur-md transform rotate-[-8deg] opacity-70 bg-background/40"
-                  initial={{ opacity: 0, x: -100 }}
-                  animate={{ opacity: 0.7, x: 0 }}
-                  transition={{ duration: 1, delay: 0.8 }}
-                  style={{ y: floatYLeft }}
-                >
-                  <div className="p-3 text-xs font-mono">
-                    <div className="text-primary">
-                      function cleanCode() {"{"}
-                    </div>
-                    <div className="pl-4">return &apos;excellence&apos;;</div>
-                    <div>{"}"}</div>
-                  </div>
-                </motion.div>
-
-                <motion.div
-                  className="absolute left-[-10rem] bottom-20 w-40 sm:w-48 rounded-lg overflow-hidden shadow-xl border border-primary/10 backdrop-blur-md transform rotate-[5deg] opacity-70 bg-background/40"
-                  initial={{ opacity: 0, x: 100 }}
-                  animate={{ opacity: 0.7, x: 0 }}
-                  transition={{ duration: 1, delay: 1 }}
-                  style={{ y: floatYRight }}
-                >
-                  <div className="p-3 text-xs font-mono">
-                    <div className="text-accent">const skills = {"{"}</div>
-                    <div className="pl-4">level: &apos;expert&apos;</div>
-                    <div>{"}"}</div>
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* SEO-optimized meta description - hidden visually but available for indexing */}
-              <div className="sr-only">
-                <h2>
-                  Clean Code Zero to One - Professional Guide to Clean
-                  Programming
-                </h2>
-                <p>
-                  Learn to write clean, maintainable code with thousands of
-                  digital illustrations and practical examples. Transform your
-                  messy codebase into elegant, professional software with our
-                  premium Clean Code Zero to One guide. Master SOLID principles,
-                  refactoring techniques, and modern design patterns.
-                </p>
+                    <span className="flex items-center justify-center">
+                      <BookOpen className="mr-2 w-4 h-4 text-primary" />
+                      Bestseller
+                    </span>
+                  </a>
+                )}
               </div>
             </motion.div>
           </div>
         </div>
 
-        {/* 3D Interactive Clean Code Banner - NEW COMPONENT */}
-        <SectionTransition>
-          {featuredProduct && <Clean3DCodeBanner product={featuredProduct} />}
-        </SectionTransition>
-
         {/* Orbital Category Universe section */}
         <div className="py-12 bg-gradient-to-b from-transparent to-background/90">
-          <div className="container max-w-7xl mx-auto px-4">
-            <SectionTransition index={1}>
+          <div className="container w-full max-w-7xl mx-auto px-4">
+            <SectionTransition>
               <RevealText
                 text="Browse by Category"
                 className="text-2xl md:text-3xl font-bold text-center mb-3"
@@ -1012,11 +894,15 @@ export default function StorePage() {
         </div>
 
         {/* Main product grid - RESTORED */}
-        <div id="products" className="container max-w-7xl mx-auto px-4 py-16">
-          <SectionTransition index={2}>
+        <div
+          id="products"
+          className="container w-full max-w-7xl mx-auto px-4 py-16"
+        >
+          <SectionTransition>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               {/* Filters Sidebar */}
-              <div className="lg:col-span-1">
+              {/* Desktop: Sidebar */}
+              <div className="hidden lg:block lg:col-span-1">
                 <GlassCard className="sticky top-24">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">Filters</h2>
@@ -1027,7 +913,6 @@ export default function StorePage() {
                       Reset All
                     </button>
                   </div>
-
                   {/* Categories Section */}
                   <div className="mb-8">
                     <h3 className="text-sm uppercase text-muted-foreground tracking-wider mb-4 flex items-center">
@@ -1058,9 +943,8 @@ export default function StorePage() {
                       ))}
                     </div>
                   </div>
-
                   {/* Price Range Section */}
-                  <div className="mb-8">
+                  <div className="mb-2">
                     <h3 className="text-sm uppercase text-muted-foreground tracking-wider mb-4">
                       Price Range
                     </h3>
@@ -1094,56 +978,128 @@ export default function StorePage() {
                       ))}
                     </div>
                   </div>
-
-                  {/* Help box */}
-                  <div className="mt-8 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                    <h4 className="font-medium text-primary mb-2">
-                      Need Help Choosing?
-                    </h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Not sure which product is right for you? Contact us for
-                      personalized recommendations.
-                    </p>
-                    <Link
-                      href="/reach-me"
-                      className="text-sm text-primary font-medium hover:underline flex items-center"
-                    >
-                      Get in Touch <ArrowRight size={12} className="ml-1" />
-                    </Link>
-                  </div>
                 </GlassCard>
               </div>
 
               {/* Products Grid */}
-              <div className="lg:col-span-3">
-                <div className="flex justify-between items-center mb-6">
-                  <RevealText
-                    text="All Products"
-                    className="text-2xl font-bold"
-                    delay={0.2}
-                  />
-                  <div className="flex items-center gap-2">
+              <div className="lg:col-span-3 flex flex-col">
+                <RevealText
+                  text="All Products"
+                  className="text-2xl font-bold mb-4"
+                  delay={0.2}
+                />
+                {/* Sort & Filter Bar for mobile/tablet */}
+                <div className="lg:hidden w-full flex flex-col gap-3 mb-8">
+                  {/* Sort Bar */}
+                  <div className="w-full flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl">
+                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 7h18M3 12h18M3 17h18"
+                        />
+                      </svg>
+                    </span>
                     <label
                       htmlFor="sort-order"
-                      className="text-sm text-muted-foreground"
+                      className="text-base font-semibold text-foreground mr-2"
                     >
-                      Sort by:
+                      Sort by
                     </label>
-                    <select
-                      id="sort-order"
-                      value={sortOrder}
-                      onChange={(e) => setSortOrder(e.target.value)}
-                      className="bg-card border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="newest">Newest First</option>
-                      <option value="oldest">Oldest First</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
-                      <option value="popular">Most Popular</option>
-                    </select>
+                    <div className="relative flex-1">
+                      <select
+                        id="sort-order"
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="popular">Most Popular</option>
+                      </select>
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </span>
+                    </div>
                   </div>
                 </div>
-
+                {/* Desktop: Sort Bar above grid */}
+                <div className="hidden lg:flex w-full items-center justify-end mb-8">
+                  <div className="flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl min-w-[340px]">
+                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 7h18M3 12h18M3 17h18"
+                        />
+                      </svg>
+                    </span>
+                    <label
+                      htmlFor="sort-order"
+                      className="text-base font-semibold text-foreground mr-2"
+                    >
+                      Sort by
+                    </label>
+                    <div className="relative flex-1">
+                      <select
+                        id="sort-order"
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="popular">Most Popular</option>
+                      </select>
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Product Grid */}
                 {filteredProducts.length === 0 ? (
                   <GlassCard>
                     <div className="py-8 text-center">
@@ -1160,33 +1116,52 @@ export default function StorePage() {
                   </GlassCard>
                 ) : (
                   <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
                     variants={staggerVariants}
                     initial="hidden"
                     animate="visible"
                   >
-                    {filteredProducts.map((product) => (
+                    {filteredProducts.map((product, idx) => (
                       <motion.div key={product.id} variants={itemVariants}>
-                        <Product3DCard
-                          id={product.id}
-                          name={product.name}
-                          description={product.description}
-                          price={product.price || 0}
-                          formattedPrice={product.formatted_price}
-                          thumbnailUrl={
-                            product.thumbnail_url ||
-                            "/images/products/placeholder.jpg"
-                          }
-                          categories={product.categories}
-                          rating={product.rating}
-                          reviewCount={product.reviews}
-                          slug={product.slug}
-                          popular={product.popular}
-                          isNew={
-                            product.published &&
-                            product.id.charCodeAt(0) % 5 === 0
-                          }
-                        />
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`View details for ${product.name}`}
+                          className="group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/60 rounded-3xl transition-shadow hover:shadow-2xl hover:scale-[1.025] relative"
+                          onClick={() => handleProductCardClick(idx)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ")
+                              handleProductCardClick(idx);
+                          }}
+                        >
+                          <Product3DCard
+                            id={product.id}
+                            name={product.name}
+                            description={product.description}
+                            price={product.price || 0}
+                            formattedPrice={product.formatted_price}
+                            thumbnailUrl={
+                              product.thumbnail_url ||
+                              "/images/products/placeholder.jpg"
+                            }
+                            categories={product.categories}
+                            rating={product.rating}
+                            reviewCount={product.reviews}
+                            slug={product.slug}
+                            popular={product.popular}
+                            isNew={
+                              product.published &&
+                              product.id.charCodeAt(0) % 5 === 0
+                            }
+                          />
+                          {/* Visual cue for clickability */}
+                          <div className="absolute top-4 right-4 z-20">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium shadow hover:bg-primary/20 transition-all">
+                              <ArrowRight className="w-3 h-3" />
+                              Details
+                            </span>
+                          </div>
+                        </div>
                       </motion.div>
                     ))}
                   </motion.div>
@@ -1196,137 +1171,70 @@ export default function StorePage() {
           </SectionTransition>
         </div>
 
-        {/* Featured review for social proof - Redesigned Apple-style testimonials */}
-        <div className="container max-w-7xl mx-auto px-4 py-16">
-          <SectionTransition index={3}>
-            <div className="text-center mb-12">
-              <RevealText
-                text="What Our Students Say"
-                className="text-3xl md:text-4xl font-bold mb-3"
-                highlightWords={["Students"]}
-              />
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                See how our resources are transforming developers' careers
-                worldwide
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Testimonial 1 */}
-              <ParallaxSection intensity={0.2}>
-                <motion.div
-                  className="rounded-2xl p-px bg-gradient-to-br from-primary/20 via-transparent to-accent/10 overflow-hidden"
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="h-full bg-card/90 backdrop-blur-sm rounded-2xl p-6 flex flex-col">
-                    <div className="flex mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className="w-4 h-4 text-amber-500 fill-amber-500 mr-1"
-                        />
-                      ))}
-                    </div>
-                    <p className="italic text-sm text-foreground/90 mb-4 flex-grow">
-                      "These resources have completely transformed how I
-                      approach software development. The clean code guide alone
-                      saved me countless hours of debugging and refactoring."
-                    </p>
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary text-lg font-bold">
-                        D
-                      </div>
-                      <div className="ml-3">
-                        <p className="font-medium text-sm">David Chen</p>
-                        <p className="text-xs text-muted-foreground">
-                          Senior Developer at TechCorp
-                        </p>
-                      </div>
-                    </div>
+        {/* Floating Product Modal */}
+        <AnimatePresence>
+          {productModalOpen && productModalIndex !== null && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-xl"
+              onClick={handleProductModalClose}
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="relative w-full max-w-4xl mx-4 bg-background/95 rounded-3xl shadow-2xl border border-white/10 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* MacOS-style header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-background/80 backdrop-blur-md">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors"
+                      onClick={handleProductModalClose}
+                    />
+                    <div
+                      className="w-3 h-3 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors"
+                      onClick={handleProductModalClose}
+                    />
+                    <div
+                      className="w-3 h-3 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors"
+                      onClick={handleProductModalClose}
+                    />
                   </div>
-                </motion.div>
-              </ParallaxSection>
+                  <span className="text-sm font-medium text-foreground/80">
+                    Product Details
+                  </span>
+                  <button
+                    onClick={handleProductModalClose}
+                    className="p-1.5 hover:bg-background rounded-md transition-colors"
+                    aria-label="Close"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
 
-              {/* Testimonial 2 */}
-              <ParallaxSection intensity={0.3}>
-                <motion.div
-                  className="rounded-2xl p-px bg-gradient-to-br from-accent/15 via-transparent to-primary/20 overflow-hidden"
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="h-full bg-card/90 backdrop-blur-sm rounded-2xl p-6 flex flex-col">
-                    <div className="flex mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className="w-4 h-4 text-amber-500 fill-amber-500 mr-1"
-                        />
-                      ))}
-                    </div>
-                    <p className="italic text-sm text-foreground/90 mb-4 flex-grow">
-                      "The quality of instruction is outstanding. Clear
-                      explanations with practical examples made learning complex
-                      concepts much easier than any other resource I've tried."
-                    </p>
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent text-lg font-bold">
-                        S
-                      </div>
-                      <div className="ml-3">
-                        <p className="font-medium text-sm">Sarah Johnson</p>
-                        <p className="text-xs text-muted-foreground">
-                          Frontend Engineer
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </ParallaxSection>
-
-              {/* Testimonial 3 */}
-              <ParallaxSection intensity={0.4}>
-                <motion.div
-                  className="rounded-2xl p-px bg-gradient-to-br from-primary/30 via-transparent to-accent/5 overflow-hidden"
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="h-full bg-card/90 backdrop-blur-sm rounded-2xl p-6 flex flex-col">
-                    <div className="flex mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className="w-4 h-4 text-amber-500 fill-amber-500 mr-1"
-                        />
-                      ))}
-                    </div>
-                    <p className="italic text-sm text-foreground/90 mb-4 flex-grow">
-                      "Worth every penny. I've seen a significant improvement in
-                      my code quality and my colleagues have noticed too. Highly
-                      recommend to any serious developer."
-                    </p>
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary text-lg font-bold">
-                        M
-                      </div>
-                      <div className="ml-3">
-                        <p className="font-medium text-sm">Michael Rodriguez</p>
-                        <p className="text-xs text-muted-foreground">
-                          Lead Developer
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </ParallaxSection>
-            </div>
-          </SectionTransition>
-        </div>
+                {/* Product Content */}
+                <div className="p-6">
+                  <FloatingGumroadCard
+                    products={filteredProducts}
+                    isOpen={true}
+                    initialProductIndex={productModalIndex}
+                    onClose={handleProductModalClose}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Newsletter/updates subscription - Apple-style redesign */}
         <div className="bg-gradient-to-b from-transparent to-primary/5 py-24">
-          <div className="container max-w-4xl mx-auto px-4">
-            <SectionTransition index={4}>
+          <div className="container w-full max-w-4xl mx-auto px-4">
+            <SectionTransition>
               <motion.div
                 className="rounded-3xl overflow-hidden relative"
                 whileHover={{ scale: 1.01 }}

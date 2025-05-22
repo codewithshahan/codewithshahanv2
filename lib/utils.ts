@@ -2,87 +2,117 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**
- * Combines multiple class names and properly merges Tailwind CSS classes
+ * Combines multiple class values using clsx and tailwind-merge
+ * Resolves tailwind conflicts by merging them properly
  */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * Format a date in a human-readable format
+ * Formats a date string into a localized, readable format
  */
-export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function formatDate(dateString: string): string {
+  const date = new Date(dateString);
 
-  // Return in format "Jan 1, 2023"
-  return d.toLocaleDateString("en-US", {
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return "Invalid date";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
+  }).format(date);
 }
 
 /**
- * Generate image placeholder
- */
-export function generatePlaceholderImage(
-  text: string,
-  bgColor?: string
-): string {
-  const encodedText = encodeURIComponent(text);
-  const backgroundColor = bgColor || "f4f4f4";
-  const textColor = "333333";
-  return `https://placehold.co/600x400/${backgroundColor}/${textColor}?text=${encodedText}`;
-}
-
-/**
- * Truncate text with ellipsis
+ * Truncates text with ellipsis after specified length
  */
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + "...";
+  return text.slice(0, maxLength).trim() + "...";
 }
 
 /**
- * Slugify text for URLs
+ * Calculates estimated reading time for text content
+ */
+export function calculateReadingTime(content: string): number {
+  const wordsPerMinute = 200;
+  const words = content.trim().split(/\s+/).length;
+  const readingTime = Math.ceil(words / wordsPerMinute);
+  return readingTime === 0 ? 1 : readingTime;
+}
+
+/**
+ * Generates a slug from a string
  */
 export function slugify(text: string): string {
   return text
-    .toString()
     .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/&/g, "-and-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-");
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 /**
- * Format a number with appropriate suffixes (k, M, B)
- * @param num - Number to format
- * @returns Formatted number string
+ * Returns a random item from an array
+ */
+export function getRandomItem<T>(array: T[]): T {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+/**
+ * Debounces a function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout>;
+
+  return function (...args: Parameters<T>): void {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+/**
+ * Creates a range of numbers
+ */
+export function range(start: number, end: number): number[] {
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+}
+
+/**
+ * Safely access nested object properties
+ */
+export function getNestedValue<T>(obj: any, path: string, defaultValue: T): T {
+  const keys = path.split(".");
+  let result = obj;
+
+  for (const key of keys) {
+    if (result === undefined || result === null) {
+      return defaultValue;
+    }
+    result = result[key];
+  }
+
+  return result === undefined || result === null ? defaultValue : (result as T);
+}
+
+/**
+ * Format a number with proper thousands separators
  */
 export function formatNumber(num: number): string {
-  if (num === undefined || num === null) return "0";
-
-  if (num >= 1000000000) {
-    return (num / 1000000000).toFixed(1).replace(/\.0$/, "") + "B";
-  }
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k";
-  }
-  return num.toString();
+  return new Intl.NumberFormat().format(num);
 }
 
 /**
- * Generate a random ID
- * @param length - Length of the ID
- * @returns Random ID string
+ * Generate a random ID - useful for temporary keys
  */
-export function generateId(length: number = 8): string {
+export function generateId(length = 8): string {
   return Math.random()
     .toString(36)
     .substring(2, 2 + length);
@@ -116,19 +146,4 @@ export function truncateString(
   if (!str) return "";
   if (str.length <= length) return str;
   return str.substring(0, length).trim() + suffix;
-}
-
-/**
- * Debounce a function
- */
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-
-  return function (...args: Parameters<T>): void {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
 }

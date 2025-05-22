@@ -39,7 +39,7 @@ export const ArticleList = ({ fetchArticles }: ArticleListProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   // Track component render performance
@@ -52,6 +52,79 @@ export const ArticleList = ({ fetchArticles }: ArticleListProps) => {
   useEffect(() => {
     loadMoreArticles();
   }, []);
+
+  // Add structured data for SEO
+  useEffect(() => {
+    if (typeof window !== "undefined" && articles.length > 0) {
+      // Generate structured data for the article list
+      const itemListElements = articles.map(
+        (article: Article, index: number) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "BlogPosting",
+            headline: article.title,
+            description: article.description,
+            image: article.coverImage,
+            author: {
+              "@type": "Person",
+              name: article.author.name,
+              url: `https://codewithshahan.com/author/${article.author.username}`,
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "CodeWithShahan",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://codewithshahan.com/icons/logo/icon.svg",
+              },
+            },
+            url: `https://codewithshahan.com/article/${article.slug}`,
+            datePublished: article.publishedAt,
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `https://codewithshahan.com/article/${article.slug}`,
+            },
+            keywords: article.tags.map((tag) => tag.name).join(", "),
+          },
+        })
+      );
+
+      const schema = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        itemListElement: itemListElements,
+        numberOfItems: articles.length,
+      };
+
+      // Create script element for structured data
+      const script = document.createElement("script");
+      script.type = "application/ld+json";
+      script.text = JSON.stringify(schema);
+
+      // Remove any existing script tags with the same ID to avoid duplicates
+      const existingScript = document.getElementById(
+        "article-list-structured-data"
+      );
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // Add ID to the script tag for easy reference
+      script.id = "article-list-structured-data";
+      document.head.appendChild(script);
+
+      // Clean up on unmount
+      return () => {
+        const scriptToRemove = document.getElementById(
+          "article-list-structured-data"
+        );
+        if (scriptToRemove) {
+          scriptToRemove.remove();
+        }
+      };
+    }
+  }, [articles]);
 
   const retryLoad = () => {
     setError(null);
@@ -67,7 +140,7 @@ export const ArticleList = ({ fetchArticles }: ArticleListProps) => {
 
     try {
       // Add timestamp to cursor to avoid caching issues
-      const timestampedCursor = cursor ? `${cursor}_${Date.now()}` : null;
+      const timestampedCursor = cursor ? `${cursor}_${Date.now()}` : undefined;
 
       // Fetch the next batch of articles
       const {
@@ -86,7 +159,7 @@ export const ArticleList = ({ fetchArticles }: ArticleListProps) => {
 
         // Update pagination state
         setHasMore(moreAvailable);
-        setCursor(endCursor || null);
+        setCursor(endCursor);
 
         // Add new articles after a small delay
         setTimeout(() => {
@@ -94,7 +167,7 @@ export const ArticleList = ({ fetchArticles }: ArticleListProps) => {
           setArticles((prev) => {
             const existingSlugs = new Set(prev.map((article) => article.slug));
             const uniqueNewArticles = newArticles.filter(
-              (article) => !existingSlugs.has(article.slug)
+              (article: Article) => !existingSlugs.has(article.slug)
             );
 
             // Append new articles to the existing list

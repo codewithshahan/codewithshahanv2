@@ -390,28 +390,26 @@ const PremiumMacOSRichTextRenderer: React.FC<
       );
     },
     a: ({ node, ...props }: any) => {
+      const safeHref = typeof props.href === "string" ? props.href : "";
+      const isExternal =
+        typeof safeHref === "string" && safeHref.startsWith("http");
       return (
         <Link
-          href={props.href}
+          href={safeHref}
           className={`text-primary font-medium hover:underline inline-flex items-center`}
-          target={props.href.startsWith("http") ? "_blank" : "_self"}
-          rel={props.href.startsWith("http") ? "noopener noreferrer" : ""}
+          target={isExternal ? "_blank" : "_self"}
+          rel={isExternal ? "noopener noreferrer" : ""}
         >
           {props.children}
-          {props.href.startsWith("http") && (
-            <ExternalLink className="ml-1" size={14} />
-          )}
+          {isExternal && <ExternalLink className="ml-1" size={14} />}
         </Link>
       );
     },
     img: ({ node, ...props }: any) => {
       // Use span as a wrapper to avoid nesting issues
+      const safeSrc = typeof props.src === "string" ? props.src : "";
       return (
-        <InteractiveImage
-          src={props.src}
-          alt={props.alt}
-          caption={props.title}
-        />
+        <InteractiveImage src={safeSrc} alt={props.alt} caption={props.title} />
       );
     },
     div: ({ node, ...props }: any) => {

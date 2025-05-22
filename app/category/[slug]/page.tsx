@@ -1,71 +1,129 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   motion,
   useScroll,
-  useTransform,
   useSpring,
+  useTransform,
   useMotionTemplate,
 } from "framer-motion";
-import { Providers } from "@/components/providers";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Link from "next/link";
+import Image from "next/image";
 import { useTheme } from "next-themes";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  ChevronDown,
+  Clock,
+  Filter,
+  Globe,
+  Newspaper,
+  Search,
+  SlidersHorizontal,
+  Tag as TagIcon,
+  User,
+  Eye,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ApiClient } from "@/services/apiClient";
 import { Category } from "@/services/categoriesApi";
-import { HashnodeArticle } from "@/services/articleCacheService";
-import { Tag } from "@/services/tagsApi";
-import Link from "next/link";
-import {
-  ArrowUpRight,
-  Filter,
-  Grid3X3,
-  Rows,
-  SlidersHorizontal,
-  ChevronDown,
-  ArrowLeft,
-  Search,
-  X,
-  Plus,
-  Bookmark,
-  CalendarDays,
-  Clock,
-  ExternalLink,
-  Eye,
-  Share2,
-} from "lucide-react";
-import { CategoryHero } from "@/components/category/CategoryHero";
-import { CategoryCard } from "@/components/category/CategoryCard";
-import { MacOSDock } from "@/components/category/MacOSDock";
-import ArticlePreviewCard from "@/components/article/ArticlePreviewCard";
-import { cn } from "@/lib/utils";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Article, Tag } from "@/services/authorService";
+import { GumroadProduct, fetchProducts } from "@/services/gumroad";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RelatedTags } from "@/components/category/RelatedTags";
+import { Providers } from "@/components/providers";
+import { MacOSDock } from "@/components/category/MacOSDock";
 
-// SEO metadata generator
-const generateMetadata = (category: string) => {
-  const title = `${category} - CodeWithShahan`;
-  const description = `Explore ${category} articles, tutorials, and premium products. Learn from expert insights and practical examples.`;
+// Category hero section component
+const CategoryHero = ({
+  name,
+  itemCount,
+  isLoading,
+  icon,
+  color,
+  description,
+}: {
+  name: string;
+  itemCount: number;
+  isLoading: boolean;
+  icon?: string;
+  color?: string;
+  description?: string;
+}) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      url: `https://codewithshahan.com/category/${category}`,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-    },
-  };
+  return (
+    <div
+      className={cn(
+        "pt-28 pb-16 px-4 text-center",
+        isDark ? "bg-black" : "bg-white"
+      )}
+    >
+      <div
+        className={cn(
+          "w-20 h-20 mx-auto mb-6 rounded-3xl flex items-center justify-center",
+          "shadow-lg"
+        )}
+        style={{ backgroundColor: color || "#6366f1" }}
+      >
+        <TagIcon size={32} className="text-white" />
+      </div>
+
+      <motion.h1
+        className={cn(
+          "text-3xl sm:text-4xl md:text-5xl font-bold mb-4",
+          isDark ? "text-white" : "text-gray-900"
+        )}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {name}
+      </motion.h1>
+
+      {description && (
+        <motion.p
+          className={cn(
+            "max-w-2xl mx-auto mb-6 text-lg",
+            isDark ? "text-gray-300" : "text-gray-600"
+          )}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          {description}
+        </motion.p>
+      )}
+
+      <motion.div
+        className="flex justify-center items-center gap-3"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Badge
+          variant="outline"
+          className={cn(
+            "px-3 py-1.5 text-sm",
+            isDark ? "bg-white/5" : "bg-black/5"
+          )}
+        >
+          <Newspaper className="mr-1 h-3.5 w-3.5" />
+          {itemCount} Articles
+        </Badge>
+      </motion.div>
+    </div>
+  );
 };
 
 // Category data type
@@ -94,50 +152,67 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = params;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const isMobile = useMediaQuery("(max-width: 768px)");
-  const isReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Refs and scroll values
+  // References
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll();
-  const { scrollYProgress: categoryScrollProgress } = useScroll({
+
+  // State
+  const [isLoading, setIsLoading] = useState(true);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [relatedCategories, setRelatedCategories] = useState<Category[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"latest" | "popular">("latest");
+  const [gumroadProducts, setGumroadProducts] = useState<GumroadProduct[]>([]);
+  const [articleTags, setArticleTags] = useState<string[]>([]);
+
+  // Get all tags from articles for product matching
+  useEffect(() => {
+    if (articles.length > 0) {
+      const tags = articles
+        .flatMap((article) => article.tags || [])
+        .filter(Boolean)
+        .map((tag) => tag.toLowerCase());
+
+      // Get unique tags
+      const uniqueTags = [...new Set(tags)];
+      setArticleTags(uniqueTags);
+    }
+  }, [articles]);
+
+  // Fetch Gumroad products
+  useEffect(() => {
+    const getProducts = async () => {
+      try {
+        const products = await fetchProducts();
+        setGumroadProducts(products);
+      } catch (error) {
+        console.error("Error fetching Gumroad products:", error);
+      }
+    };
+
+    getProducts();
+  }, []);
+
+  // Scroll animations
+  const { scrollYProgress } = useScroll({
     target: scrollContainerRef,
     offset: ["start start", "end start"],
   });
 
-  // Smoother scroll progress
   const smoothScrollProgress = useSpring(scrollYProgress, {
+    damping: 15,
     stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
   });
 
-  // State
-  const [category, setCategory] = useState<Category | null>(null);
-  const [articles, setArticles] = useState<HashnodeArticle[]>([]);
-  const [relatedCategories, setRelatedCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<"latest" | "popular">("latest");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
+  const headerOpacity = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
+  const headerY = useTransform(scrollYProgress, [0, 0.1], [-50, 0]);
 
-  // Animation values
-  const opacity = useTransform(smoothScrollProgress, [0, 0.15], [1, 0]);
-  const scale = useTransform(smoothScrollProgress, [0, 0.15], [1, 0.95]);
-  const y = useTransform(smoothScrollProgress, [0, 0.15], [0, 20]);
-
-  // Background parallax effect
-  const backgroundY = useTransform(
-    smoothScrollProgress,
-    [0, 1],
-    isReducedMotion ? ["0%", "0%"] : ["0%", "30%"]
-  );
-
-  // Header effects
-  const headerOpacity = useTransform(smoothScrollProgress, [0.05, 0.1], [0, 1]);
-  const headerY = useTransform(smoothScrollProgress, [0.05, 0.1], [-20, 0]);
+  // Hero section animations
+  const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.3], [1, 0.95]);
+  const y = useTransform(scrollYProgress, [0, 0.3], [0, -50]);
 
   // Progress indicator
   const progressWidth = useMotionTemplate`${useTransform(
@@ -145,6 +220,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     [0, 1],
     ["0%", "100%"]
   )}`;
+
+  // Hydration fix
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Fetch category and articles
   useEffect(() => {
@@ -212,6 +292,10 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     }
   }, [filteredArticles, sortBy]);
 
+  if (!isMounted) {
+    return null;
+  }
+
   return (
     <Providers>
       <div
@@ -255,67 +339,45 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowSearch(!showSearch)}
-                  className={cn(
-                    "p-2 rounded-full transition-colors",
-                    isDark ? "hover:bg-white/10" : "hover:bg-black/5"
-                  )}
-                >
-                  {showSearch ? <X size={18} /> : <Search size={18} />}
-                </button>
+                <Input
+                  placeholder="Search articles..."
+                  className="w-40 md:w-60 h-9 bg-transparent"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
 
-                <div
-                  className={cn(
-                    "flex rounded-lg overflow-hidden transition-all",
-                    isDark ? "bg-white/10" : "bg-black/5",
-                    showSearch ? "w-40 sm:w-60" : "w-0"
-                  )}
-                >
-                  <input
-                    type="text"
-                    placeholder="Search articles..."
-                    className={cn(
-                      "w-full px-3 py-1 text-sm bg-transparent focus:outline-none transition-all",
-                      showSearch ? "opacity-100" : "opacity-0"
-                    )}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9">
+                      <SlidersHorizontal size={14} className="mr-2" />
+                      <span className="hidden sm:inline">Sort</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("latest")}
+                      className={cn(
+                        sortBy === "latest" &&
+                          "font-medium bg-secondary text-secondary-foreground"
+                      )}
+                    >
+                      Latest
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setSortBy("popular")}
+                      className={cn(
+                        sortBy === "popular" &&
+                          "font-medium bg-secondary text-secondary-foreground"
+                      )}
+                    >
+                      Popular
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
         </motion.div>
-
-        {/* 3D Background with Parallax */}
-        <motion.div className="fixed inset-0 z-0" style={{ y: backgroundY }}>
-          {/* Base gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
-
-          {/* Dynamic color accent based on category */}
-          {category && (
-            <div
-              className="absolute inset-0 opacity-20 mix-blend-soft-light"
-              style={{
-                background: `radial-gradient(circle at 50% 0%, ${
-                  category.color || "#007AFF"
-                }33 0%, transparent 70%)`,
-              }}
-            />
-          )}
-
-          {/* Grain texture overlay */}
-          <div
-            className="absolute inset-0 opacity-30 mix-blend-soft-light"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-            }}
-          />
-        </motion.div>
-
-        {/* Main Content */}
-        <Navbar />
 
         <main className="relative z-10">
           <motion.div style={{ opacity, scale, y }}>
@@ -369,298 +431,243 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               </span>
             </div>
 
-            <div className="flex items-center gap-3 relative">
-              {/* Sort Dropdown */}
+            <div className="w-full sm:w-auto relative">
               <div className="relative">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors backdrop-blur-md",
-                    isDark
-                      ? "bg-gray-800/80 hover:bg-gray-700/90 text-white"
-                      : "bg-white/80 hover:bg-white/90 text-gray-700 shadow-sm"
-                  )}
-                >
-                  <SlidersHorizontal size={16} />
-                  <span>{sortBy === "latest" ? "Latest" : "Popular"}</span>
-                  <ChevronDown
-                    size={16}
-                    className={cn(
-                      "transition-transform",
-                      showFilters ? "rotate-180" : ""
-                    )}
-                  />
-                </button>
-
-                {showFilters && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className={cn(
-                      "absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg z-10 backdrop-blur-xl",
-                      isDark
-                        ? "bg-gray-800/95 border border-gray-700"
-                        : "bg-white/95 border border-gray-200 shadow-xl"
-                    )}
-                  >
-                    <button
-                      onClick={() => {
-                        setSortBy("latest");
-                        setShowFilters(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-4 py-2.5 text-sm transition-colors rounded-t-lg",
-                        sortBy === "latest"
-                          ? "text-primary font-medium"
-                          : isDark
-                          ? "text-gray-300"
-                          : "text-gray-700",
-                        isDark ? "hover:bg-gray-700/50" : "hover:bg-gray-100/60"
-                      )}
-                    >
-                      Latest
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSortBy("popular");
-                        setShowFilters(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-4 py-2.5 text-sm rounded-b-lg transition-colors",
-                        sortBy === "popular"
-                          ? "text-primary font-medium"
-                          : isDark
-                          ? "text-gray-300"
-                          : "text-gray-700",
-                        isDark ? "hover:bg-gray-700/50" : "hover:bg-gray-100/60"
-                      )}
-                    >
-                      Popular
-                    </button>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* View Mode Buttons */}
-              <div
-                className={cn(
-                  "flex rounded-lg overflow-hidden backdrop-blur-md",
-                  isDark ? "bg-gray-800/80" : "bg-white/80 shadow-sm"
-                )}
-              >
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={cn(
-                    "p-2.5 transition-colors",
-                    viewMode === "grid"
-                      ? isDark
-                        ? "bg-primary/20 text-primary"
-                        : "bg-primary/10 text-primary"
-                      : isDark
-                      ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700/30"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/60"
-                  )}
-                  aria-label="Grid view"
-                >
-                  <Grid3X3 size={16} />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={cn(
-                    "p-2.5 transition-colors",
-                    viewMode === "list"
-                      ? isDark
-                        ? "bg-primary/20 text-primary"
-                        : "bg-primary/10 text-primary"
-                      : isDark
-                      ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700/30"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/60"
-                  )}
-                  aria-label="List view"
-                >
-                  <Rows size={16} />
-                </button>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search in this category..."
+                  className="pl-9 w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
           </div>
 
-          {/* Search UI - Mobile optimized */}
-          <div
-            className={cn(
-              "relative mb-6 overflow-hidden transition-all duration-300",
-              searchQuery ? "h-14" : "h-0"
-            )}
-          >
-            {searchQuery && (
-              <motion.div
-                className={cn(
-                  "flex items-center justify-between p-3 rounded-lg backdrop-blur-md",
-                  isDark ? "bg-gray-800/70" : "bg-white/70 shadow-sm"
-                )}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <p className="text-sm">
-                  <span className="font-medium">{sortedArticles.length}</span>{" "}
-                  {sortedArticles.length === 1 ? "result" : "results"} for "
-                  {searchQuery}"
-                </p>
-                <button
-                  onClick={() => setSearchQuery("")}
+          {/* Articles grid */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton
+                  key={i}
                   className={cn(
-                    "p-1.5 rounded-full",
-                    isDark ? "hover:bg-gray-700" : "hover:bg-gray-200"
+                    "h-[300px] rounded-xl",
+                    isDark ? "bg-gray-800/30" : "bg-gray-100"
                   )}
-                >
-                  <X size={16} />
-                </button>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Articles Grid with Motion Layout */}
-          <motion.div layout>
-            {isLoading ? (
+                />
+              ))}
+            </div>
+          ) : sortedArticles.length === 0 ? (
+            <div className="text-center py-12">
               <div
                 className={cn(
-                  "grid gap-6",
-                  viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                    : "grid-cols-1"
+                  "mx-auto w-16 h-16 mb-4 rounded-full flex items-center justify-center",
+                  isDark ? "bg-gray-800/50" : "bg-gray-100"
                 )}
               >
-                {[...Array(6)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "rounded-xl overflow-hidden",
-                      viewMode === "grid" ? "h-[360px]" : "h-[200px]"
-                    )}
+                <Search
+                  className={cn(
+                    "h-6 w-6",
+                    isDark ? "text-gray-400" : "text-gray-500"
+                  )}
+                />
+              </div>
+              <h3 className="text-xl font-medium mb-2">No articles found</h3>
+              <p
+                className={cn(
+                  isDark ? "text-gray-400" : "text-gray-500",
+                  "max-w-md mx-auto"
+                )}
+              >
+                We couldn't find any articles matching your search in this
+                category.
+              </p>
+              {searchQuery && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Clear search
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sortedArticles.map((article, idx) => (
+                <motion.div
+                  key={article.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    ease: [0.23, 1, 0.32, 1],
+                    delay: idx * 0.05,
+                  }}
+                >
+                  <Link href={`/article/${article.slug}`}>
+                    <div
+                      className={cn(
+                        "group h-full rounded-xl overflow-hidden border",
+                        "transition-all duration-300 hover:shadow-md",
+                        isDark
+                          ? "bg-gray-900/40 border-gray-800 hover:bg-gray-900/80"
+                          : "bg-white border-gray-200 hover:bg-gray-50/50"
+                      )}
+                    >
+                      {/* Article Image */}
+                      <div className="aspect-video relative overflow-hidden">
+                        {article.coverImage ? (
+                          <Image
+                            src={article.coverImage}
+                            alt={article.title || "Article cover image"}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div
+                            className={cn(
+                              "w-full h-full flex items-center justify-center",
+                              isDark ? "bg-gray-800" : "bg-gray-100"
+                            )}
+                          >
+                            <Newspaper
+                              className={cn(
+                                "h-8 w-8",
+                                isDark ? "text-gray-600" : "text-gray-400"
+                              )}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Article Content */}
+                      <div className="p-5">
+                        <h3
+                          className={cn(
+                            "line-clamp-2 font-semibold mb-2 text-lg leading-tight group-hover:text-primary transition-colors",
+                            isDark ? "text-white" : "text-gray-900"
+                          )}
+                        >
+                          {article.title}
+                        </h3>
+
+                        <p
+                          className={cn(
+                            "line-clamp-2 text-sm mb-4",
+                            isDark ? "text-gray-400" : "text-gray-600"
+                          )}
+                        >
+                          {article.brief ||
+                            "Read this article to learn more about " +
+                              article.title}
+                        </p>
+
+                        {/* Article Meta */}
+                        <div
+                          className={cn(
+                            "flex items-center justify-between text-xs",
+                            isDark ? "text-gray-500" : "text-gray-500"
+                          )}
+                        >
+                          <div className="flex items-center">
+                            <User className="h-3 w-3 mr-1" />
+                            <span className="truncate max-w-[100px]">
+                              {article.author?.name || "Anonymous"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              <span>
+                                {article.readTime ||
+                                  Math.ceil(article.brief?.length / 800) ||
+                                  3}{" "}
+                                min
+                              </span>
+                            </div>
+                            {article.views && (
+                              <div className="flex items-center">
+                                <Eye className="h-3 w-3 mr-1" />
+                                <span>
+                                  {article.views > 1000
+                                    ? `${(article.views / 1000).toFixed(1)}k`
+                                    : article.views}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Related Categories Section */}
+          {relatedCategories.length > 0 && (
+            <div className="mt-16">
+              <h3
+                className={cn(
+                  "text-xl font-bold mb-6",
+                  isDark ? "text-white" : "text-gray-900"
+                )}
+              >
+                Related Categories
+              </h3>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {relatedCategories.map((relatedCategory) => (
+                  <Link
+                    key={relatedCategory.slug}
+                    href={`/category/${relatedCategory.slug}`}
                   >
                     <div
                       className={cn(
-                        "w-full h-full rounded-xl animate-pulse",
-                        isDark ? "bg-gray-800/50" : "bg-gray-100"
+                        "border p-4 rounded-xl flex items-center gap-3 transition-colors",
+                        "hover:border-primary",
+                        isDark
+                          ? "bg-gray-900/40 border-gray-800"
+                          : "bg-white border-gray-200"
                       )}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : sortedArticles.length > 0 ? (
-              <motion.div
-                className={cn(
-                  "grid gap-6",
-                  viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                    : "grid-cols-1 max-w-4xl mx-auto"
-                )}
-                layout
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                  layout: { duration: 0.3 },
-                }}
-              >
-                {sortedArticles.map((article) => (
-                  <ArticlePreviewCard
-                    key={article.slug}
-                    article={{
-                      id: article.id,
-                      slug: article.slug,
-                      title: article.title,
-                      description: article.brief || "",
-                      coverImage: article.coverImage,
-                      publishedAt: article.publishedAt,
-                      readingTime: article.readingTime,
-                      author: article.author,
-                      categories: article.tags?.map((tag) => tag.name) || [],
-                    }}
-                    featured={viewMode === "list"}
-                  />
-                ))}
-              </motion.div>
-            ) : (
-              <motion.div
-                className={cn(
-                  "text-center py-12 rounded-xl backdrop-blur-md",
-                  isDark ? "bg-gray-800/50" : "bg-gray-100/50"
-                )}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <h3
-                  className={cn(
-                    "text-xl font-medium mb-3",
-                    isDark ? "text-white" : "text-gray-900"
-                  )}
-                >
-                  {searchQuery ? "No matching articles" : "No articles found"}
-                </h3>
-                <p className={isDark ? "text-gray-400" : "text-gray-600"}>
-                  {searchQuery
-                    ? `No articles match your search for "${searchQuery}"`
-                    : "Check back later for new content in this category"}
-                </p>
-
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className={cn(
-                      "mt-4 px-4 py-2 rounded-lg inline-flex items-center text-sm",
-                      isDark
-                        ? "bg-gray-700 hover:bg-gray-600 text-white"
-                        : "bg-white hover:bg-gray-50 text-gray-900 shadow-sm"
-                    )}
-                  >
-                    <X size={14} className="mr-2" />
-                    Clear search
-                  </button>
-                )}
-              </motion.div>
-            )}
-          </motion.div>
-
-          {/* Related Categories Section - Apple Card Style */}
-          {relatedCategories.length > 0 && (
-            <div className="mt-24 mb-12">
-              <div className="flex items-center justify-between mb-8">
-                <h2
-                  className={cn(
-                    "text-2xl font-bold",
-                    isDark ? "text-white" : "text-gray-900"
-                  )}
-                >
-                  Related Categories
-                </h2>
-                <Link
-                  href="/categories"
-                  className={cn(
-                    "inline-flex items-center gap-1 text-sm font-medium transition-colors",
-                    isDark
-                      ? "text-primary hover:text-primary/80"
-                      : "text-primary hover:text-primary/80"
-                  )}
-                >
-                  View all categories <ArrowUpRight size={14} />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {relatedCategories.map((category) => (
-                  <CategoryCard
-                    key={category.slug}
-                    category={category}
-                    variant="default"
-                  />
+                    >
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center"
+                        style={{
+                          backgroundColor: relatedCategory.color || "#6366f1",
+                        }}
+                      >
+                        <TagIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4
+                          className={cn(
+                            "font-medium text-sm truncate",
+                            isDark ? "text-white" : "text-gray-900"
+                          )}
+                        >
+                          {relatedCategory.name}
+                        </h4>
+                        <p
+                          className={cn(
+                            "text-xs truncate",
+                            isDark ? "text-gray-400" : "text-gray-600"
+                          )}
+                        >
+                          {relatedCategory.articleCount || 0} Articles
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </div>
             </div>
           )}
         </section>
-
-        <Footer />
       </div>
     </Providers>
   );

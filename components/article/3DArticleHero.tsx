@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import {
   motion,
   useMotionValue,
@@ -33,12 +33,7 @@ import {
   Server,
   Award,
   Bookmark,
-  ChevronRight,
 } from "lucide-react";
-import { HashnodeArticle as CachedArticle } from "@/services/articleCacheService";
-import ApiClient from "@/services/apiClient";
-import { Tag as ArticleTag } from "@/services/tagsApi";
-import { useRouter } from "next/navigation";
 
 interface ArticleHeroProps {
   coverImage: string;
@@ -62,90 +57,129 @@ interface ArticleHeroProps {
   };
   category?: string;
   slug?: string;
-  tags?: ArticleTag[];
+  tags?: {
+    name: string;
+    slug: string;
+    color?: string;
+  }[];
   scrollY?: any;
   enableParticles?: boolean;
   enableDepthEffect?: boolean;
 }
 
-// Cache to store fetched articles by tag
-const articleCache: Record<string, CachedArticle[]> = {};
+interface HashnodeArticle {
+  title: string;
+  slug: string;
+  coverImage: string;
+  brief?: string;
+  url?: string;
+}
+
+// Hashnode GraphQL query for fetching recent articles
+const HASHNODE_API_URL = "https://gql.hashnode.com";
+const HASHNODE_ARTICLE_QUERY = `
+  query GetRecentArticles {
+    publication(host: "codewithshahan.hashnode.dev") {
+      posts(first: 4) {
+        edges {
+          node {
+            title
+            brief
+            slug
+            coverImage {
+              url
+            }
+            url
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Function to fetch Hashnode articles
+const fetchHashnodeArticles = async (): Promise<HashnodeArticle[]> => {
+  try {
+    const response = await fetch(HASHNODE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: HASHNODE_ARTICLE_QUERY }),
+    });
+
+    const data = await response.json();
+
+    if (data.errors) {
+      console.error("Error fetching Hashnode articles:", data.errors);
+      return [];
+    }
+
+    return data.data.publication.posts.edges.map((edge: any) => ({
+      title: edge.node.title,
+      brief: edge.node.brief,
+      slug: edge.node.slug,
+      coverImage:
+        edge.node.coverImage?.url ||
+        "https://cdn.hashnode.com/res/hashnode/image/upload/v1632487189773/P10Xdcm7t.png",
+      url: edge.node.url,
+    }));
+  } catch (error) {
+    console.error("Failed to fetch articles:", error);
+    return [];
+  }
+};
 
 // Map tag names to appropriate icons
 const getTagIcon = (tagName: string) => {
-  const iconSize = 14;
-  const iconClassName = "mr-1 inline-block";
   const tagNameLower = tagName.toLowerCase();
 
   if (tagNameLower.includes("react") || tagNameLower.includes("ui"))
-    return <Palette size={iconSize} className={iconClassName} />;
+    return Palette;
   if (tagNameLower.includes("code") || tagNameLower.includes("clean"))
-    return <Code size={iconSize} className={iconClassName} />;
+    return Code;
   if (
     tagNameLower.includes("ai") ||
     tagNameLower.includes("ml") ||
     tagNameLower.includes("intelligence")
   )
-    return <Cpu size={iconSize} className={iconClassName} />;
+    return Cpu;
   if (tagNameLower.includes("tutorial") || tagNameLower.includes("guide"))
-    return <BookOpen size={iconSize} className={iconClassName} />;
+    return BookOpen;
   if (tagNameLower.includes("web") || tagNameLower.includes("frontend"))
-    return <Layers size={iconSize} className={iconClassName} />;
+    return Layers;
   if (tagNameLower.includes("devops") || tagNameLower.includes("deployment"))
-    return <Rocket size={iconSize} className={iconClassName} />;
+    return Rocket;
   if (tagNameLower.includes("tip") || tagNameLower.includes("trick"))
-    return <Lightbulb size={iconSize} className={iconClassName} />;
+    return Lightbulb;
   if (
     tagNameLower.includes("architecture") ||
     tagNameLower.includes("design pattern")
   )
-    return <Blocks size={iconSize} className={iconClassName} />;
+    return Blocks;
   if (tagNameLower.includes("link") || tagNameLower.includes("resource"))
-    return <Link2 size={iconSize} className={iconClassName} />;
+    return Link2;
   if (tagNameLower.includes("script") || tagNameLower.includes("javascript"))
-    return <FileText size={iconSize} className={iconClassName} />;
+    return FileText;
   if (tagNameLower.includes("performance") || tagNameLower.includes("speed"))
-    return <Zap size={iconSize} className={iconClassName} />;
+    return Zap;
   if (tagNameLower.includes("database") || tagNameLower.includes("sql"))
-    return <Database size={iconSize} className={iconClassName} />;
+    return Database;
   if (
     tagNameLower.includes("command") ||
     tagNameLower.includes("terminal") ||
     tagNameLower.includes("cli")
   )
-    return <Terminal size={iconSize} className={iconClassName} />;
+    return Terminal;
   if (tagNameLower.includes("internet") || tagNameLower.includes("network"))
-    return <Globe size={iconSize} className={iconClassName} />;
+    return Globe;
   if (tagNameLower.includes("backend") || tagNameLower.includes("server"))
-    return <Server size={iconSize} className={iconClassName} />;
+    return Server;
   if (tagNameLower.includes("best") || tagNameLower.includes("practice"))
-    return <Award size={iconSize} className={iconClassName} />;
+    return Award;
   if (tagNameLower.includes("save") || tagNameLower.includes("collection"))
-    return <Bookmark size={iconSize} className={iconClassName} />;
+    return Bookmark;
 
   // Default icon
-  return <Coffee size={iconSize} className={iconClassName} />;
-};
-
-// Advanced category-based article fetching with caching
-const fetchArticlesByCategory = async (
-  categorySlug: string
-): Promise<CachedArticle[]> => {
-  if (!categorySlug) {
-    console.warn("No category slug provided for article fetching");
-    return [];
-  }
-
-  try {
-    // Use the ApiClient with its built-in caching
-    return await ApiClient.articles.getArticlesByCategory(categorySlug, 4);
-  } catch (error) {
-    console.error(
-      `Failed to fetch articles for category ${categorySlug}:`,
-      error
-    );
-    return [];
-  }
+  return Coffee;
 };
 
 const ArticleHero: React.FC<ArticleHeroProps> = ({
@@ -167,13 +201,11 @@ const ArticleHero: React.FC<ArticleHeroProps> = ({
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const [fetchedCategories, setFetchedCategories] = useState<any[]>([]);
+  const [fetchedTags, setFetchedTags] = useState<any[]>([]);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [hoveredTagIndex, setHoveredTagIndex] = useState<number | null>(null);
-  const [relatedArticles, setRelatedArticles] = useState<CachedArticle[]>([]);
+  const [relatedArticles, setRelatedArticles] = useState<HashnodeArticle[]>([]);
   const [dockHovered, setDockHovered] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   // Motion values for smooth hover effect
   const scale = useMotionValue(1);
@@ -196,101 +228,58 @@ const ArticleHero: React.FC<ArticleHeroProps> = ({
     return `${month} ${day}, ${year}`;
   };
 
-  // Fetch categories for this article if not provided
+  // Fetch tags from Hashnode API if needed
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchTags = async () => {
       if (slug && (!tags || tags.length === 0)) {
         try {
-          // Fetch from the categories API endpoint using our standardized route
-          const response = await fetch(`/api/articles/${slug}/categories`);
-
+          // This is a placeholder for actual API fetch - replace with your actual implementation
+          const response = await fetch(`/api/article/${slug}/tags`);
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.data && data.data.categories) {
-              setFetchedCategories(data.data.categories);
-            } else {
-              // Fallback to direct tags API if the response format is unexpected
-              console.warn(
-                "Invalid categories API response format, fetching tags directly"
-              );
-              const tagsResponse = await fetch(`/api/articles/${slug}/tags`);
-              if (tagsResponse.ok) {
-                const tagsData = await tagsResponse.json();
-                if (tagsData.success && tagsData.data && tagsData.data.tags) {
-                  setFetchedCategories(tagsData.data.tags);
-                }
-              }
-            }
-          } else {
-            // Fallback to ApiClient if the API route fails
-            console.warn("Categories API failed, falling back to ApiClient");
-            const articleTags = await ApiClient.tags.getArticleTags(slug);
-            setFetchedCategories(articleTags);
+            setFetchedTags(data.tags || []);
           }
         } catch (error) {
-          console.error("Error in category fetching process:", error);
-          setFetchedCategories([]);
+          console.error("Error fetching tags:", error);
         }
       }
     };
 
-    fetchCategories();
+    fetchTags();
   }, [slug, tags]);
 
-  // Fetch related articles when a category is hovered
+  // Fetch related articles when a tag is hovered
   useEffect(() => {
-    // Combine provided tags with fetched categories
-    const currentDisplayTags = tags.length > 0 ? tags : fetchedCategories;
-
-    const getRelatedArticles = async (categoryData: any) => {
-      if (!categoryData || !categoryData.slug) return;
-
-      setIsLoading(true);
+    const getRelatedArticles = async (tagSlug: string) => {
+      if (!tagSlug) return;
 
       try {
-        // Check if we have cached articles for this category
-        if (articleCache[categoryData.slug]) {
-          setRelatedArticles(articleCache[categoryData.slug]);
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch articles by category using our cache service
-        const articles = await fetchArticlesByCategory(categoryData.slug);
-
-        // Cache the results for this category
-        articleCache[categoryData.slug] = articles;
-
+        // Fetch real Hashnode articles
+        const articles = await fetchHashnodeArticles();
         setRelatedArticles(articles);
       } catch (error) {
         console.error("Error fetching related articles:", error);
         setRelatedArticles([]);
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    if (hoveredTagIndex !== null && currentDisplayTags[hoveredTagIndex]) {
-      getRelatedArticles(currentDisplayTags[hoveredTagIndex]);
+    if (hoveredTagIndex !== null && tags[hoveredTagIndex]) {
+      getRelatedArticles(tags[hoveredTagIndex].slug);
     }
-  }, [
-    hoveredTagIndex,
-    tags,
-    fetchedCategories,
-    articleCache,
-    fetchArticlesByCategory,
-  ]);
+  }, [hoveredTagIndex, tags]);
 
-  // Display tags from either provided tags or fetched categories
-  const displayTags = useMemo(
-    () => (tags.length > 0 ? tags : fetchedCategories),
-    [tags, fetchedCategories]
-  );
+  // Combine provided tags with fetched tags
+  const displayTags = tags.length > 0 ? tags : fetchedTags;
 
-  // Using TagsApi for tag colors now
-  const getTagColor = (tagName: string) => {
-    return ApiClient.tags.getTagColor(tagName);
-  };
+  // Apple-style tag colors with gradients
+  const tagColors = [
+    "from-[#FF2D55] to-[#FF2D55]/80", // Apple red
+    "from-[#007AFF] to-[#007AFF]/80", // Apple blue
+    "from-[#34C759] to-[#34C759]/80", // Apple green
+    "from-[#AF52DE] to-[#AF52DE]/80", // Apple purple
+    "from-[#FF9500] to-[#FF9500]/80", // Apple orange
+    "from-[#5AC8FA] to-[#5AC8FA]/80", // Apple light blue
+  ];
 
   // Calculate dock magnification effect
   const getMagnification = (index: number, hoveredIndex: number | null) => {
@@ -469,137 +458,129 @@ const ArticleHero: React.FC<ArticleHeroProps> = ({
         </motion.div>
       </div>
 
-      {/* MacOS-style dock for tags */}
+      {/* macOS Dock-style Tags (streamlined version) */}
       {displayTags.length > 0 && (
-        <div className="absolute -bottom-16 left-0 right-0 flex justify-center z-30">
+        <div className="absolute -bottom-12 left-0 right-0 flex justify-center z-30">
           <motion.div
-            className={`inline-flex flex-wrap justify-center gap-2 py-3 px-5 rounded-2xl backdrop-blur-xl ${
-              isDark
-                ? "bg-gray-900/70 border border-gray-800/80"
-                : "bg-white/80 border border-gray-200/80 shadow-lg"
-            }`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.3,
-              duration: 0.5,
-              ease: [0.23, 1, 0.32, 1],
+            className="overflow-visible px-3 py-1.5"
+            style={{
+              perspective: "1000px",
+              transformStyle: "preserve-3d",
             }}
-            onMouseEnter={() => setDockHovered(true)}
-            onMouseLeave={() => {
-              setDockHovered(false);
-              setHoveredTagIndex(null);
-            }}
+            onHoverStart={() => setDockHovered(true)}
+            onHoverEnd={() => setDockHovered(false)}
           >
-            {displayTags.map((tag, index) => {
-              const magnification = getMagnification(index, hoveredTagIndex);
-              const baseColor =
-                tag.color || ApiClient.tags.getTagColor(tag.name) || "#007AFF";
+            {/* macOS-style shelf/platform hint - very subtle */}
+            <div
+              className="absolute inset-x-0 -bottom-1 h-px mx-4"
+              style={{
+                background: isDark
+                  ? "linear-gradient(to right, transparent, rgba(255,255,255,0.1) 50%, transparent)"
+                  : "linear-gradient(to right, transparent, rgba(0,0,0,0.1) 50%, transparent)",
+              }}
+            />
 
-              return (
-                <Link
-                  key={`tag-${tag.slug}-${index}`}
-                  href={`/category/${tag.slug}`}
-                  className="relative group"
-                  onMouseEnter={() => setHoveredTagIndex(index)}
-                  onClick={(e) => {
-                    // Prevent navigation if we're just selecting the tag to see related articles
-                    if (relatedArticles.length > 0) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <motion.div
-                    className="px-3 py-1.5 flex items-center gap-1.5 text-white font-medium shadow-md rounded-full"
-                    style={{
-                      background: `linear-gradient(to right, ${baseColor}, ${baseColor}CC)`,
-                      originY: "bottom",
-                    }}
-                    animate={{
-                      scale: dockHovered ? magnification : 1,
-                      y: dockHovered && hoveredTagIndex === index ? -5 : 0,
-                    }}
-                    whileHover={{ scale: dockHovered ? magnification : 1.05 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 20,
-                    }}
+            <div className="flex items-center justify-center space-x-2 sm:space-x-3 px-2 py-2 relative flex-wrap">
+              {displayTags.map((tag, index) => {
+                const isHovered = hoveredTagIndex === index;
+                const baseColor =
+                  tag.color ||
+                  tagColors[index % tagColors.length].split(" ")[1];
+                const magnification = getMagnification(index, hoveredTagIndex);
+
+                return (
+                  <div
+                    key={tag.slug}
+                    className="relative"
+                    onMouseEnter={() => setHoveredTagIndex(index)}
+                    onMouseLeave={() => setHoveredTagIndex(null)}
                   >
-                    <span className="font-bold text-xs sm:text-sm">#</span>
-                    <span className="text-xs sm:text-sm whitespace-nowrap">
-                      {tag.name}
-                    </span>
-                    {/* Render an appropriate icon based on tag name */}
-                    {getTagIcon(tag.name.toLowerCase())}
-                  </motion.div>
-
-                  {/* Floating article preview cards */}
-                  <AnimatePresence>
-                    {hoveredTagIndex === index && (
+                    <Link
+                      href={`/category/${tag.slug}`}
+                      aria-label={`View articles tagged with ${tag.name}`}
+                    >
                       <motion.div
-                        className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 translate-y-full z-50 
-                          w-[280px] sm:w-[320px] rounded-2xl ${
-                            isDark
-                              ? "bg-gray-900/95 border border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.7)]"
-                              : "bg-white/95 border border-gray-200 shadow-[0_0_30px_rgba(0,0,0,0.15)]"
-                          } backdrop-blur-md overflow-hidden`}
-                        initial={{ opacity: 0, y: 20, rotateX: -10 }}
-                        animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                        exit={{ opacity: 0, y: 20, rotateX: -10 }}
+                        className="px-3 py-1.5 flex items-center gap-1 text-white font-medium shadow-md rounded-full"
+                        style={{
+                          background: `linear-gradient(to right, ${
+                            baseColor || "#FF2D55"
+                          }, ${baseColor || "#FF2D55"}CC)`,
+                          originY: "bottom",
+                        }}
+                        animate={{
+                          scale: dockHovered ? magnification : 1,
+                          y: dockHovered && isHovered ? -5 : 0,
+                        }}
+                        whileTap={{ scale: 0.95 }}
                         transition={{
                           type: "spring",
-                          stiffness: 300,
+                          stiffness: 400,
                           damping: 25,
                         }}
-                        style={{
-                          perspective: "1000px",
-                          transformStyle: "preserve-3d",
-                        }}
                       >
-                        {/* Custom card header with Apple-style design */}
-                        <div
-                          className={`px-3.5 py-2.5 border-b flex items-center justify-between ${
-                            isDark ? "border-gray-800" : "border-gray-100"
-                          }`}
+                        <span className="font-bold text-xs sm:text-sm">#</span>
+                        <span className="text-xs sm:text-sm whitespace-nowrap">
+                          {tag.name}
+                        </span>
+                      </motion.div>
+                    </Link>
+
+                    {/* Floating article cards (Apple-style "stack") - Enhanced for touch */}
+                    <AnimatePresence>
+                      {isHovered && (
+                        <motion.div
+                          className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 translate-y-full z-50 
+                            w-[280px] sm:w-[320px] rounded-2xl ${
+                              isDark
+                                ? "bg-gray-900/95 border border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.7)]"
+                                : "bg-white/95 border border-gray-200 shadow-[0_0_30px_rgba(0,0,0,0.15)]"
+                            } backdrop-blur-md overflow-hidden`}
+                          initial={{ opacity: 0, y: 20, rotateX: -10 }}
+                          animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                          exit={{ opacity: 0, y: 20, rotateX: -10 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 25,
+                          }}
                           style={{
-                            background: `linear-gradient(to right, ${baseColor}33, ${baseColor}11)`,
+                            perspective: "1000px",
+                            transformStyle: "preserve-3d",
                           }}
                         >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="h-3 w-3 rounded-full"
-                              style={{ background: baseColor }}
-                            />
-                            <h3
-                              className={`text-sm font-medium ${
-                                isDark ? "text-white" : "text-gray-800"
-                              }`}
-                            >
-                              Articles from{" "}
-                              <span className="font-bold">#{tag.name}</span>
-                            </h3>
-                          </div>
-                          <div className="flex space-x-1">
-                            <span className="w-2.5 h-2.5 rounded-full bg-gray-400/50"></span>
-                            <span className="w-2.5 h-2.5 rounded-full bg-gray-400/50"></span>
-                          </div>
-                        </div>
-
-                        {/* Article cards stack */}
-                        <div className="p-3">
-                          {isLoading ? (
-                            <div className="flex flex-col items-center justify-center py-8">
-                              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                              <p
-                                className={`text-xs ${
-                                  isDark ? "text-gray-400" : "text-gray-500"
+                          {/* Custom card header with Apple-style design */}
+                          <div
+                            className={`px-3.5 py-2.5 border-b flex items-center justify-between ${
+                              isDark ? "border-gray-800" : "border-gray-100"
+                            }`}
+                            style={{
+                              background: `linear-gradient(to right, ${
+                                baseColor || "#FF2D55"
+                              }33, ${baseColor || "#FF2D55"}11)`,
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="h-3 w-3 rounded-full"
+                                style={{ background: baseColor || "#FF2D55" }}
+                              />
+                              <h3
+                                className={`text-sm font-medium ${
+                                  isDark ? "text-white" : "text-gray-800"
                                 }`}
                               >
-                                Loading articles...
-                              </p>
+                                Articles from{" "}
+                                <span className="font-bold">#{tag.name}</span>
+                              </h3>
                             </div>
-                          ) : relatedArticles.length > 0 ? (
+                            <div className="flex space-x-1">
+                              <span className="w-2.5 h-2.5 rounded-full bg-gray-400/50"></span>
+                              <span className="w-2.5 h-2.5 rounded-full bg-gray-400/50"></span>
+                            </div>
+                          </div>
+
+                          {/* Article cards stack */}
+                          <div className="p-3">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {relatedArticles.map((article, i) => (
                                 <Link
@@ -623,7 +604,9 @@ const ArticleHero: React.FC<ArticleHeroProps> = ({
                                       rotateY: 0,
                                       rotateX: 0,
                                       scale: 1.03,
-                                      boxShadow: `0px 10px 20px -5px ${baseColor}44`,
+                                      boxShadow: `0px 10px 20px -5px ${
+                                        baseColor || "#FF2D55"
+                                      }44`,
                                     }}
                                     transition={{
                                       type: "spring",
@@ -664,83 +647,25 @@ const ArticleHero: React.FC<ArticleHeroProps> = ({
                                 </Link>
                               ))}
                             </div>
-                          ) : (
-                            <div className="text-center py-8">
-                              <p
-                                className={`text-sm ${
-                                  isDark ? "text-gray-400" : "text-gray-500"
-                                }`}
-                              >
-                                No articles found for #{tag.name}
-                              </p>
-                            </div>
-                          )}
 
-                          {/* macOS-style footer indicator */}
-                          <div
-                            className="mx-auto w-16 h-1 mt-2 rounded-full"
-                            style={{
-                              background: `linear-gradient(to right, transparent, ${baseColor}44, transparent)`,
-                            }}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Reflection effect */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-1/3 opacity-40 group-hover:opacity-60 transition-opacity"
-                    style={{
-                      transform: "rotateX(180deg) scaleY(0.3) translateY(-2px)",
-                      background: `linear-gradient(to bottom, ${baseColor}, transparent)`,
-                      filter: "blur(1px)",
-                    }}
-                  />
-                </Link>
-              );
-            })}
+                            {/* macOS-style footer indicator */}
+                            <div
+                              className="mx-auto w-16 h-1 mt-2 rounded-full"
+                              style={{
+                                background: `linear-gradient(to right, transparent, ${
+                                  baseColor || "#FF2D55"
+                                }44, transparent)`,
+                              }}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
           </motion.div>
-        </div>
-      )}
-
-      {/* Category Tags with macOS dock effect */}
-      {displayTags && displayTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-6">
-          {displayTags.map((tag, index) => (
-            <motion.button
-              key={tag.slug || index}
-              className={`rounded-full px-3 py-1 text-sm font-medium text-white transition-all ${
-                hoveredTagIndex === index
-                  ? "ring-2 ring-white ring-opacity-50"
-                  : ""
-              }`}
-              style={{
-                backgroundColor: tag.color || getTagColor(tag.name),
-                scale: getMagnification(index, hoveredTagIndex),
-                boxShadow:
-                  hoveredTagIndex === index
-                    ? "0 5px 15px rgba(0, 0, 0, 0.2)"
-                    : "none",
-              }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.4,
-                delay: 0.2 + index * 0.05,
-                ease: [0.23, 1, 0.32, 1],
-              }}
-              onHoverStart={() => setHoveredTagIndex(index)}
-              onHoverEnd={() => setHoveredTagIndex(null)}
-              onClick={() => {
-                setHoveredTagIndex(index);
-                router.push(`/category/${tag.slug}`);
-              }}
-            >
-              {getTagIcon(tag.name.toLowerCase())}
-              <span>{tag.name}</span>
-            </motion.button>
-          ))}
         </div>
       )}
     </div>
