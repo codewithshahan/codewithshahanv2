@@ -39,6 +39,7 @@ import EbookBanner from "@/components/EbookBanner";
 import { useRouter } from "next/navigation";
 import TagArticlesPanel from "@/components/tag/TagArticlesPanel";
 import { OrbitalCategoryUniverse } from "@/components/OrbitalCategoryUniverse";
+import { ScrollContainer, ScrollSection } from "@/components/ui/scroll";
 
 interface Product {
   id: string;
@@ -227,177 +228,200 @@ export default function HomePage() {
     setSelectedTag(tag);
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Main Content Area */}
-      <div className="relative">
-        {/* Ebook Banner */}
-        <div className="sticky top-0 z-50">
-          <EbookBanner />
-        </div>
+  const sections = [
+    "hero",
+    "featured-articles",
+    "categories",
+    "ai-insight",
+    "newsletter",
+    "products",
+  ];
 
-        {/* Hero Section with Developer Background */}
-        <div className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
-          {/* Developer-themed background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/80 to-background">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-            </div>
+  return (
+    <ScrollContainer sections={sections}>
+      <div className="min-h-screen bg-background">
+        {/* Main Content Area */}
+        <div className="relative">
+          {/* Ebook Banner */}
+          <div className="sticky top-0 z-50">
+            <EbookBanner />
           </div>
 
-          <div className="relative z-10 text-center px-4 max-w-7xl mx-auto">
-            <h1 className="text-6xl md:text-8xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary/60">
-              Code With Shahan
-            </h1>
+          {/* Hero Section */}
+          <ScrollSection
+            id="hero"
+            className="relative min-h-[85vh] flex items-center justify-center overflow-hidden"
+          >
+            {/* Developer-themed background */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/80 to-background">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+              </div>
+            </div>
 
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Discover {enhancedCategories.length} categories of premium
-              articles and tutorials
-            </p>
+            <div className="relative z-10 text-center px-4 max-w-7xl mx-auto">
+              <h1 className="text-6xl md:text-8xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary/60">
+                Code With Shahan
+              </h1>
 
-            {/* MacOS-style Search Bar */}
-            <div className="max-w-2xl mx-auto mb-12">
-              <div className="relative group">
-                <input
-                  type="text"
-                  placeholder="Search articles, tutorials, and more..."
-                  className="w-full px-6 py-4 rounded-2xl bg-background/50 backdrop-blur-xl border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-300 text-lg"
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <kbd className="px-2 py-1 text-xs rounded bg-background/80 border border-border/50 text-muted-foreground">
-                    ⌘K
-                  </kbd>
+              <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">
+                Discover {enhancedCategories.length} categories of premium
+                articles and tutorials
+              </p>
+
+              {/* MacOS-style Search Bar */}
+              <div className="max-w-2xl mx-auto mb-12">
+                <div className="relative group">
+                  <input
+                    type="text"
+                    placeholder="Search articles, tutorials, and more..."
+                    className="w-full px-6 py-4 rounded-2xl bg-background/50 backdrop-blur-xl border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-300 text-lg"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                    <kbd className="px-2 py-1 text-xs rounded bg-background/80 border border-border/50 text-muted-foreground">
+                      ⌘K
+                    </kbd>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Quick Access Links */}
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link
-                href="/code-playground"
-                className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
-              >
-                <Code
-                  size={20}
-                  className="text-primary group-hover:scale-110 transition-transform"
-                />
-                <span className="font-medium">Code Playground</span>
-              </Link>
-              <Link
-                href="/tutorials"
-                className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
-              >
-                <BookOpen
-                  size={20}
-                  className="text-primary group-hover:scale-110 transition-transform"
-                />
-                <span className="font-medium">Tutorials</span>
-              </Link>
-              <Link
-                href="/ai-insights"
-                className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
-              >
-                <Sparkles
-                  size={20}
-                  className="text-primary group-hover:scale-110 transition-transform"
-                />
-                <span className="font-medium">AI Insights</span>
-              </Link>
+              {/* Quick Access Links */}
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link
+                  href="/code-playground"
+                  className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
+                >
+                  <Code
+                    size={20}
+                    className="text-primary group-hover:scale-110 transition-transform"
+                  />
+                  <span className="font-medium">Code Playground</span>
+                </Link>
+                <Link
+                  href="/tutorials"
+                  className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
+                >
+                  <BookOpen
+                    size={20}
+                    className="text-primary group-hover:scale-110 transition-transform"
+                  />
+                  <span className="font-medium">Tutorials</span>
+                </Link>
+                <Link
+                  href="/ai-insights"
+                  className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
+                >
+                  <Sparkles
+                    size={20}
+                    className="text-primary group-hover:scale-110 transition-transform"
+                  />
+                  <span className="font-medium">AI Insights</span>
+                </Link>
+              </div>
             </div>
+          </ScrollSection>
+
+          {/* Main Content */}
+          <div className="relative z-10">
+            {/* Featured Articles Section */}
+            <ScrollSection id="featured-articles" className="py-20">
+              <div className="max-w-7xl mx-auto px-4">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-3xl font-bold">Featured Articles</h2>
+                  <Link
+                    href="/articles"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
+                    View all articles
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {transformedArticles.slice(0, 3).map((article, index) => (
+                    <MacOSArticleCard
+                      key={article.slug}
+                      article={article}
+                      index={index}
+                      onTagClick={handleTagClick}
+                    />
+                  ))}
+                </div>
+              </div>
+            </ScrollSection>
+
+            {/* Category Ring Section */}
+            <ScrollSection
+              id="categories"
+              className="py-20 bg-gradient-to-b from-background to-background/80"
+            >
+              <div className="max-w-7xl mx-auto px-4">
+                <h2 className="text-3xl font-bold mb-8 text-center">
+                  Explore Topics
+                </h2>
+                <OrbitalCategoryUniverse
+                  categories={enhancedCategories}
+                  title="Explore Our Categories"
+                  description="Discover our comprehensive collection of development topics"
+                  isHomePage={true}
+                />
+              </div>
+            </ScrollSection>
+
+            {/* AI Daily Insight Section */}
+            <ScrollSection id="ai-insight" className="py-20">
+              <div className="max-w-3xl mx-auto px-4">
+                <AIDailyInsight />
+              </div>
+            </ScrollSection>
+
+            {/* Newsletter Section */}
+            <ScrollSection
+              id="newsletter"
+              className="py-20 bg-gradient-to-b from-background/80 to-background"
+            >
+              <div className="max-w-3xl mx-auto px-4">
+                <StickyNewsletter />
+              </div>
+            </ScrollSection>
+
+            {/* Products Section */}
+            <ScrollSection
+              id="products"
+              className="py-20 bg-gradient-to-b from-background/80 to-background"
+            >
+              <div className="max-w-7xl mx-auto px-4">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-3xl font-bold">Digital Products</h2>
+                  <Link
+                    href="/store"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
+                    View all products
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {products.map((product, index) => (
+                    <GumroadProductCard
+                      key={product.id}
+                      product={product}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </div>
+            </ScrollSection>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="relative z-10">
-          {/* Featured Articles Section */}
-          <section className="py-20">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold">Featured Articles</h2>
-                <Link
-                  href="/articles"
-                  className="flex items-center gap-2 text-primary hover:underline"
-                >
-                  View all articles
-                  <ArrowRight size={16} />
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {transformedArticles.slice(0, 3).map((article, index) => (
-                  <MacOSArticleCard
-                    key={article.slug}
-                    article={article}
-                    index={index}
-                    onTagClick={handleTagClick}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Category Ring Section */}
-          <section className="py-20 bg-gradient-to-b from-background to-background/80">
-            <div className="max-w-7xl mx-auto px-4">
-              <h2 className="text-3xl font-bold mb-8 text-center">
-                Explore Topics
-              </h2>
-              <OrbitalCategoryUniverse
-                categories={enhancedCategories}
-                title="Explore Our Categories"
-                description="Discover our comprehensive collection of development topics"
-                isHomePage={true}
-              />
-            </div>
-          </section>
-
-          {/* AI Daily Insight Section */}
-          <section className="py-20">
-            <div className="max-w-3xl mx-auto px-4">
-              <AIDailyInsight />
-            </div>
-          </section>
-
-          {/* Newsletter Section */}
-          <section className="py-20 bg-gradient-to-b from-background/80 to-background">
-            <div className="max-w-3xl mx-auto px-4">
-              <StickyNewsletter />
-            </div>
-          </section>
-
-          {/* Products Section */}
-          <section className="py-20 bg-gradient-to-b from-background/80 to-background">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-3xl font-bold">Digital Products</h2>
-                <Link
-                  href="/store"
-                  className="flex items-center gap-2 text-primary hover:underline"
-                >
-                  View all products
-                  <ArrowRight size={16} />
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {products.map((product, index) => (
-                  <GumroadProductCard
-                    key={product.id}
-                    product={product}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
+        {/* Tag Articles Panel */}
+        {selectedTag && (
+          <TagArticlesPanel
+            tag={selectedTag}
+            onClose={() => setSelectedTag(null)}
+          />
+        )}
       </div>
-
-      {/* Tag Articles Panel */}
-      {selectedTag && (
-        <TagArticlesPanel
-          tag={selectedTag}
-          onClose={() => setSelectedTag(null)}
-        />
-      )}
-    </div>
+    </ScrollContainer>
   );
 }

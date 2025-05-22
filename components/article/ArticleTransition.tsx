@@ -143,7 +143,6 @@ const ArticleTransition: React.FC = () => {
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          <span className="text-primary">Scroll to explore</span>
           <svg
             width="14"
             height="14"
