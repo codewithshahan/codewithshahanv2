@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { FloatingMessageCard } from "./FloatingMessageCard";
 import { CategoryTitle } from "./CategoryTitle";
 import { useNavigationStore } from "@/store/navigationStore";
+import TagArticlesPanel from "@/components/tag/TagArticlesPanel";
 
 // For caching
 const CACHE_PREFIX = "category_data_";
@@ -30,6 +31,7 @@ interface OrbitalCategoryUniverseProps {
   containerSize?: number;
   title?: string;
   description?: string;
+  isHomePage?: boolean;
 }
 
 interface OrbitalLayer {
@@ -44,6 +46,7 @@ export const OrbitalCategoryUniverse = ({
   containerSize = 480, // Default size for desktop
   title,
   description,
+  isHomePage = false,
 }: OrbitalCategoryUniverseProps) => {
   const router = useRouter();
   const universeRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,13 @@ export const OrbitalCategoryUniverse = ({
   // Store the last animation timestamps to continue from where we left off
   const lastAnimationTime = useRef(0);
   const pausedElapsedTime = useRef(0);
+
+  // Add new state for category panel
+  const [selectedCategory, setSelectedCategory] = useState<{
+    name: string;
+    slug: string;
+    color: string;
+  } | null>(null);
 
   // Initialize audio element
   useEffect(() => {
@@ -310,20 +320,50 @@ export const OrbitalCategoryUniverse = ({
     return { x: cardX, y: cardY };
   };
 
-  // Navigate to category - no delay
+  // Modify navigateToCategory to handle floating window
   const navigateToCategory = (index: number) => {
     const category = categories[index];
-    const url = `/store/category/${category.slug}`;
 
-    // Start navigation animation
-    const { startNavigation } = useNavigationStore.getState();
-    startNavigation(url);
+    if (isHomePage) {
+      // Show floating window instead of navigating
+      setSelectedCategory({
+        name: category.name,
+        slug: category.slug,
+        color: category.color || "#4F46E5",
+      });
 
-    // Pre-fetch category data to cache
-    preFetchCategoryData(category.slug, category.name);
+      // Add haptic feedback
+      if (typeof window !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate(50);
+      }
+    } else {
+      // Original navigation behavior for non-home pages
+      const url = `/store/category/${category.slug}`;
+      const { startNavigation } = useNavigationStore.getState();
+      startNavigation(url);
+      preFetchCategoryData(category.slug, category.name);
+      router.push(url);
+    }
+  };
 
-    // Navigate to the category page
-    router.push(url);
+  // Modify spin result handling
+  const handleSpinResult = (index: number) => {
+    const winningCategory = categories[index];
+    setSpinResultIndex(index);
+
+    // Show floating window for spin result
+    if (isHomePage) {
+      setSelectedCategory({
+        name: winningCategory.name,
+        slug: winningCategory.slug,
+        color: winningCategory.color || "#4F46E5",
+      });
+    }
+
+    // Add haptic feedback
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([30, 50, 30]);
+    }
   };
 
   // Pre-fetch and cache category data
@@ -399,259 +439,98 @@ export const OrbitalCategoryUniverse = ({
     }
   }, [categories]);
 
-  // Spin the universe and select a random category
+  // Enhanced spin animation with better physics and feedback
   const spinUniverse = () => {
     if (isSpinning) return;
 
-    // Reset any active states and pause all idle animations
+    // Reset states and pause animations
     setActiveOrbIndex(null);
     setRandomMessageOrbIndex(null);
     setAutoShowCard(null);
     setIsSpinning(true);
-    setIsAnimationPaused(true); // Pause all idle animations
+    setIsAnimationPaused(true);
 
-    // Play spin sound
+    // Add haptic feedback
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([50, 30, 50]);
+    }
+
+    // Play spin sound with enhanced audio
     playSpinSound();
 
-    // Pick a random category
-    const randomIndex = Math.floor(Math.random() * categories.length);
+    // Pick a random category with weighted distribution
+    const weights = categories.map((_, idx) => {
+      // Give higher weight to categories with more content
+      const layerIndex = idx % 3;
+      return layerIndex === 0 ? 1.5 : layerIndex === 1 ? 1.2 : 1;
+    });
+
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let random = Math.random() * totalWeight;
+    let randomIndex = 0;
+
+    for (let i = 0; i < weights.length; i++) {
+      random -= weights[i];
+      if (random <= 0) {
+        randomIndex = i;
+        break;
+      }
+    }
+
     const winningCategory = categories[randomIndex];
 
-    // Animate all orbs with a spinning motion - enhanced for realistic 360° spin
-    // Store start angles to use for the spinning animation
+    // Enhanced spin animation with better physics
     const startAngles = [...orbitalAngles];
     const startTime = Date.now();
-    const spinDuration = 3000; // 3 seconds for a more satisfying spin
+    const spinDuration = 3000;
 
-    // Create spin animation
+    // Create spin animation with enhanced physics
     let spinAnimationId: number;
 
     const animateSpin = () => {
       const elapsedTime = Date.now() - startTime;
       const progress = Math.min(elapsedTime / spinDuration, 1);
 
-      // Enhanced multi-phase easing for a more cinematic spin effect
+      // Enhanced multi-phase easing for more realistic physics
       const cinematicSpin = (t: number) => {
-        // Apple-style spring easing curve with improved fluid motion
         if (t < 0.2) {
-          // Initial quick acceleration phase (0-20% of animation)
-          // Fast acceleration with slight anticipation feel
-          return t * t * 3.5; // Stronger initial acceleration for snappier start
+          return t * t * 3.5;
         } else if (t < 0.5) {
-          // Peak velocity phase (20-50% of animation)
-          // Maintain high speed with subtle physics-based fluctuations
-          const normalized = (t - 0.2) / 0.3; // Normalize to 0-1 for this phase
-          const baseVelocity = 0.14 + normalized * 0.5; // Base velocity increases gradually
-          // Add harmonic oscillation for natural planetary motion feel
+          const normalized = (t - 0.2) / 0.3;
+          const baseVelocity = 0.14 + normalized * 0.5;
           const naturalVariation = Math.sin(normalized * Math.PI * 2) * 0.03;
           return baseVelocity + naturalVariation;
         } else if (t < 0.85) {
-          // Deceleration phase (50-85% of animation)
-          // Realistic gravitational slowing with inertial resistance
-          const normalized = (t - 0.5) / 0.35; // Normalize to 0-1
-          // Physics-based deceleration curve
+          const normalized = (t - 0.5) / 0.35;
           const decelCurve = 0.64 - Math.pow(normalized, 1.7) * 0.32;
-          // Add subtle dampening oscillation
           const dampening =
             Math.sin(normalized * Math.PI * 1.5) * 0.02 * (1 - normalized);
           return decelCurve + dampening;
         } else {
-          // Final settling phase (85-100% of animation)
-          // Gentle easing into the final position with subtle elastic feel
-          const normalized = (t - 0.85) / 0.15; // Normalize to 0-1
-
-          // Elastic settling curve
-          const settlingBase = 0.32 - normalized * 0.32; // Base curve approaching 0
-
-          // Add diminishing oscillation that fades out for a natural elastic feel
+          const normalized = (t - 0.85) / 0.15;
+          const settlingBase = 0.32 - normalized * 0.32;
           const elasticOscillation =
             Math.sin(normalized * Math.PI * 2.5) *
             Math.pow(1 - normalized, 1.8) *
             0.04;
-
           return settlingBase + elasticOscillation;
         }
       };
 
-      // Apply enhanced easing to rotation (16 full rotations for a satisfying spin)
+      // Apply enhanced easing to rotation
       const rotationAmount = cinematicSpin(progress) * (Math.PI * 32);
 
-      // Apply 3D effects during spin for added immersion
-      if (universeRef.current) {
-        // Calculate current rotation speed for dynamic effects
-        const prevProgress = Math.max(0, progress - 0.01);
-        const prevRotation = cinematicSpin(prevProgress) * (Math.PI * 32);
-        const instantRotationSpeed = (rotationAmount - prevRotation) * 100; // Normalized speed
-
-        // Remove blur effect - content should always be sharp
-        // Instead, only apply scale effects which don't affect clarity
-        if (universeRef.current.style) {
-          // Only apply scale effects, no blur
-          const baseScale = 1 + Math.min(0.05, instantRotationSpeed * 0.003);
-          const pulseScale =
-            baseScale * (1 + Math.sin(progress * Math.PI * 12) * 0.01);
-          universeRef.current.style.transform = `scale(${pulseScale})`;
-          universeRef.current.style.transition = "transform 0.05s ease-out";
-        }
-
-        // Add dynamic tilt effect during spin based on current speed
-        // More pronounced during acceleration, gentler during deceleration
-        if (progress < 0.4) {
-          // Intense dynamic tilt during acceleration phase
-          // Use current rotation speed to create authentic physics feel
-          const tiltBase = Math.min(1, instantRotationSpeed * 0.03) * 14;
-          const tiltPhase = progress * Math.PI * 8;
-
-          const intenseTiltX = Math.sin(tiltPhase) * tiltBase;
-          const intenseTiltY = Math.cos(tiltPhase * 0.8) * (tiltBase * 0.8);
-
-          universeRotateX.set(intenseTiltX);
-          universeRotateY.set(intenseTiltY);
-        } else {
-          // Gradually stabilizing tilt during deceleration
-          const stabilizingFactor = Math.max(
-            0,
-            1 - ((progress - 0.4) / 0.6) * 1.2
-          );
-          const currentPhase = rotationAmount * 0.2;
-
-          const gentleTiltX = Math.sin(currentPhase) * 8 * stabilizingFactor;
-          const gentleTiltY =
-            Math.cos(currentPhase * 0.85) * 6 * stabilizingFactor;
-
-          universeRotateX.set(gentleTiltX);
-          universeRotateY.set(gentleTiltY);
-
-          // Gradually return scale to normal with subtle settling motion
-          if (universeRef.current.style && progress > 0.4) {
-            const returnProgress = (progress - 0.4) / 0.6;
-            const baseReturn = 1 + Math.max(0, 0.05 - returnProgress * 0.05);
-
-            // Add subtle oscillation during deceleration for a more natural feel
-            const settlingFactor = Math.pow(1 - returnProgress, 1.3) * 0.015;
-            const settleScale =
-              baseReturn +
-              Math.sin(returnProgress * Math.PI * 4) * settlingFactor;
-
-            universeRef.current.style.transform = `scale(${settleScale})`;
-
-            // Adjust transition timing based on phase
-            universeRef.current.style.transition =
-              returnProgress > 0.8
-                ? "transform 0.2s ease-out" // Smoother at the end
-                : "transform 0.1s ease-out";
-          }
-        }
-
-        // Add subtle perspective shift during spin
-        // Makes the universe appear to get "closer" during high-speed parts
-        const basePerspective = 1000; // Default perspective value
-        const dynamicPerspective =
-          basePerspective - Math.sin(progress * Math.PI) * 150;
-        universePerspective.set(dynamicPerspective);
-      }
-
-      // Update each orb's angle with the enhanced rotation and layer-specific physics
+      // Update each orb's position with enhanced physics
       const newAngles = startAngles.map((angle, idx) => {
-        // Add variance to each layer for more realistic group physics
         const layerIndex = idx % 3;
-
-        // Apply sophisticated layer physics based on distance from center
-        // Outer layers have more resistance and lag behind inner layers
-        let inertiaFactor;
-        if (progress < 0.2) {
-          // During initial acceleration, outer layers lag significantly
-          inertiaFactor =
-            layerIndex === 0
-              ? 1
-              : layerIndex === 1
-              ? 0.85 + progress * 0.5
-              : 0.75 + progress * 0.6;
-        } else if (progress < 0.7) {
-          // During main spin, layers catch up but maintain slight variance
-          inertiaFactor =
-            layerIndex === 0
-              ? 1
-              : layerIndex === 1
-              ? 0.93 + Math.sin(progress * Math.PI * 2) * 0.03
-              : 0.89 + Math.sin(progress * Math.PI * 3) * 0.04;
-        } else {
-          // During deceleration, outer layers have more momentum and decelerate slower
-          const decelProgress = (progress - 0.7) / 0.3;
-          inertiaFactor =
-            layerIndex === 0
-              ? 1 - decelProgress * 0.1 // Inner layer slows down faster
-              : layerIndex === 1
-              ? 0.93 + decelProgress * 0.12 // Middle layer continues with momentum
-              : 0.89 + decelProgress * 0.18; // Outer layer has most momentum
-        }
-
-        // Create unique wobble patterns for each orb during spin
-        const orbSignature = (idx * 0.17) % 1; // Creates a unique value between 0-1 for each orb
-
-        // Wobble intensity varies by spin phase
+        const inertiaFactor =
+          layerIndex === 0 ? 1 : layerIndex === 1 ? 0.85 : 0.75;
         const wobbleIntensity =
-          progress < 0.3
-            ? 0.07 * (1 - progress / 0.3) // Strong at start, fading by 30%
-            : progress < 0.7
-            ? 0.02 // Subtle during main spin
-            : 0.04 * ((progress - 0.7) / 0.3); // Increases slightly during deceleration
-
-        const wobbleFrequency = 9 + (idx % 4) + progress * 5; // Frequency increases with speed
+          progress < 0.3 ? 0.07 * (1 - progress / 0.3) : 0.02;
         const uniqueWobble =
-          Math.sin(
-            progress * Math.PI * wobbleFrequency + orbSignature * Math.PI * 2.5
-          ) * wobbleIntensity;
+          Math.sin(progress * Math.PI * 9 + idx * 0.17) * wobbleIntensity;
 
-        // Self-rotation effect with improved physics
-        // Speed varies based on rotation phase and layer position
-        const selfRotationSpeed =
-          layerIndex === 0
-            ? 12 // Fastest for inner layer
-            : layerIndex === 1
-            ? 9 // Medium for middle layer
-            : 7; // Slowest for outer layer
-
-        let selfRotation;
-        if (progress < 0.25) {
-          // Initial accelerating self-rotation
-          selfRotation =
-            Math.pow(progress / 0.25, 1.8) * Math.PI * selfRotationSpeed;
-        } else if (progress < 0.7) {
-          // Main spin phase with consistent rotation
-          const mainProgress = (progress - 0.25) / 0.45;
-          selfRotation =
-            Math.PI * selfRotationSpeed +
-            mainProgress * Math.PI * selfRotationSpeed * 1.5;
-        } else {
-          // Deceleration with natural physics
-          const decelProgress = (progress - 0.7) / 0.3;
-          const baseRotation =
-            Math.PI * selfRotationSpeed +
-            0.45 * Math.PI * selfRotationSpeed * 1.5;
-
-          // Add oscillation that diminishes as the orb settles
-          const settlingOscillation =
-            Math.sin(decelProgress * Math.PI * 3) *
-            Math.pow(1 - decelProgress, 1.6) *
-            0.7;
-
-          selfRotation =
-            baseRotation +
-            (1 - Math.pow(decelProgress, 1.7)) * Math.PI * 3 + // Decay curve
-            settlingOscillation; // Add oscillation
-        }
-
-        // Add phase shift to prevent synchronization
-        const phaseShift = orbSignature * Math.PI * 2;
-        const finalSelfRotation = selfRotation + phaseShift;
-
-        return (
-          angle +
-          rotationAmount * inertiaFactor +
-          uniqueWobble +
-          finalSelfRotation
-        );
+        return angle + rotationAmount * inertiaFactor + uniqueWobble;
       });
 
       setOrbitalAngles(newAngles);
@@ -659,53 +538,23 @@ export const OrbitalCategoryUniverse = ({
       if (progress < 1) {
         spinAnimationId = requestAnimationFrame(animateSpin);
       } else {
-        // Spinning complete
+        // Spinning complete - show result with enhanced animation
         setIsSpinning(false);
-        setSpinResultIndex(randomIndex);
+        handleSpinResult(randomIndex);
 
-        // Gentle reset of any 3D effects with smooth transition
-        // Don't snap back to zero instantly
-        const resetTilt = () => {
-          const currentX = universeRotateX.get();
-          const currentY = universeRotateY.get();
-
-          if (Math.abs(currentX) < 0.1 && Math.abs(currentY) < 0.1) {
-            universeRotateX.set(0);
-            universeRotateY.set(0);
-            return;
-          }
-
-          universeRotateX.set(currentX * 0.9);
-          universeRotateY.set(currentY * 0.9);
-
-          requestAnimationFrame(resetTilt);
-        };
-
-        resetTilt();
-
-        // Clean up any applied styles
-        if (universeRef.current?.style) {
-          // Apply smooth transition for final style reset
-          universeRef.current.style.transition = "transform 0.5s ease-out";
-
-          // Remove any transformation
+        // Show winning card with enhanced animation
+        const winningCard = document.getElementById(
+          `floating-card-${winningCategory.slug}`
+        );
+        if (winningCard) {
+          winningCard.style.transform = "scale(1.1)";
+          winningCard.style.transition = "transform 0.3s ease-out";
           setTimeout(() => {
-            if (universeRef.current?.style) {
-              universeRef.current.style.transform = "scale(1)";
-            }
-
-            // Reset any orb-specific styles
-            categories.forEach((_, idx) => {
-              const orbElement = document.getElementById(`orb-${idx}`);
-              if (orbElement) {
-                orbElement.style.transform = "";
-              }
-            });
-          }, 50); // Short delay to ensure smooth transition
+            winningCard.style.transform = "scale(1)";
+          }, 300);
         }
 
-        // Automatically hide the winning card after 4 seconds
-        // But only if user isn't hovering over it
+        // Auto-hide winning card after delay
         setTimeout(() => {
           if (!isFloatingCardHovered) {
             setSpinResultIndex(null);
@@ -716,7 +565,7 @@ export const OrbitalCategoryUniverse = ({
 
     spinAnimationId = requestAnimationFrame(animateSpin);
 
-    // Clean up animation if component unmounts during spin
+    // Cleanup animation
     const spinTimerId = setTimeout(() => {
       cancelAnimationFrame(spinAnimationId);
     }, spinDuration);
@@ -902,15 +751,16 @@ export const OrbitalCategoryUniverse = ({
     return { primary, secondary, glow };
   };
 
-  // Handle floating card hover state changes
+  // Enhanced floating card hover handling
   const handleFloatingCardHoverChange = (isHovered: boolean) => {
     setIsFloatingCardHovered(isHovered);
 
-    // If spin result card is shown and user just stopped hovering it,
-    // hide it after 1 second
     if (!isHovered && spinResultIndex !== null) {
+      // Add a small delay before hiding the card
       setTimeout(() => {
-        setSpinResultIndex(null);
+        if (!isFloatingCardHovered) {
+          setSpinResultIndex(null);
+        }
       }, 1000);
     }
   };
@@ -1507,6 +1357,14 @@ export const OrbitalCategoryUniverse = ({
           );
         })}
       </AnimatePresence>
+
+      {/* Add floating category panel */}
+      {selectedCategory && (
+        <TagArticlesPanel
+          tag={selectedCategory}
+          onClose={() => setSelectedCategory(null)}
+        />
+      )}
     </div>
   );
 };

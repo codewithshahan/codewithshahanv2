@@ -1,451 +1,403 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import Footer from "@/components/Footer";
-import FeaturedArticle from "@/components/FeaturedArticle";
-import ArticlePreview from "@/components/ArticlePreview";
-import SearchBar from "@/components/SearchBar";
-import EbookBanner from "@/components/EbookBanner";
-import MusicPlayer from "@/components/MusicPlayer";
-import { useToast } from "@/components/ui/use-toast";
-import { ArticleList } from "@/components/ArticleList";
-import { performance } from "@/lib/performance";
-import { Providers } from "@/components/providers";
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
-import { CONTACT, STORE } from "@/lib/routes";
-import { ApiClient } from "@/services/apiClient";
-import {
-  HashnodeArticle,
-  fetchAndCacheAllArticles,
-} from "@/services/articleCacheService";
-import TrendingTags from "@/components/TrendingTags";
-import { AtomicCategoryUniverse } from "@/components/AtomicCategoryUniverse";
-import { SpinningCategoryWheel } from "@/components/SpinningCategoryWheel";
-import Image from "next/image";
-import config from "@/lib/config";
-import { fetchHashnodeQuery } from "@/lib/api";
-import Newsletter from "@/components/Newsletter";
-import SearchArticles from "@/components/SearchArticles";
-import RightSidebar from "@/components/sidebar/RightSidebar";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import SearchResult from "@/components/SearchResult";
+import CategoryRing from "@/components/category/CategoryRing";
+import MacOSArticleCard from "@/components/article/MacOSArticleCard";
+import GumroadProductCard from "@/components/product/GumroadProductCard";
+import AIDailyInsight from "@/components/widgets/AIDailyInsight";
+import StickyNewsletter from "@/components/newsletter/StickyNewsletter";
 import { SimplifiedHashnodeApi } from "@/services/hashnodeApi";
+import { HashnodeArticle } from "@/services/articleCacheService";
+import { cn } from "@/lib/utils";
+import {
+  ArrowRight,
+  Code,
+  BookOpen,
+  Sparkles,
+  Code2,
+  Terminal,
+  Database,
+  Cloud,
+  Lock,
+  TestTube,
+  Palette,
+  Smartphone,
+  Server,
+  Globe,
+  Cpu,
+  Network,
+  Shield,
+  Zap,
+  Layers,
+  Boxes,
+  GitBranch,
+  Workflow,
+} from "lucide-react";
+import EbookBanner from "@/components/EbookBanner";
+import { useRouter } from "next/navigation";
+import TagArticlesPanel from "@/components/tag/TagArticlesPanel";
+import { OrbitalCategoryUniverse } from "@/components/OrbitalCategoryUniverse";
 
-// Define type for the ArticleList component's expected Article format
-interface ArticleListArticle {
+interface Product {
+  id: string;
   title: string;
-  slug: string;
-  coverImage: string;
   description: string;
-  readingTime: string;
-  publishedAt: string;
+  price: number;
+  currency: string;
+  coverImage: string;
+  rating: number;
+  downloads: number;
+  url: string;
+  tags: string[];
+}
+
+interface Micropost {
+  id: string;
+  content: string;
   author: {
     name: string;
     username: string;
     avatar: string;
   };
-  category: {
-    name: string;
-    slug: string;
-  };
-  tags: Array<{
-    name: string;
-    slug: string;
-    color: string;
-  }>;
+  timestamp: string;
+  likes: number;
+  replies: number;
+  shares: number;
+  tags: string[];
 }
 
 export default function HomePage() {
-  const [loading, setLoading] = useState(true);
   const [articles, setArticles] = useState<HashnodeArticle[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<HashnodeArticle[]>([]);
-  const { toast } = useToast();
-  const headerRef = useRef<HTMLDivElement>(null);
-
-  // Parallax scrolling effect
-  const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 500], [0, -100]);
-
-  // Track page load performance
-  useEffect(() => {
-    const cleanup = performance.trackComponentRender("HomePage");
-    return cleanup;
-  }, []);
-
-  const loadArticles = async () => {
-    try {
-      console.log("Fetching articles using SimplifiedHashnodeApi...");
-      const result = await SimplifiedHashnodeApi.fetchArticles(20);
-      setArticles(result.articles);
-
-      if (result.articles.length === 0) {
-        setError(
-          "No articles found. Please check your Hashnode configuration."
-        );
-      } else {
-        setError(null);
-      }
-    } catch (err) {
-      console.error("Error fetching articles:", err);
-      setError("Failed to load articles. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<{
+    name: string;
+    slug: string;
+    color: string;
+  } | null>(null);
+  const { resolvedTheme } = useTheme();
+  const router = useRouter();
 
   useEffect(() => {
-    loadArticles();
-
-    // Test the direct API call
-    async function testDirectAPI() {
+    const loadData = async () => {
       try {
-        console.log("Testing direct GraphQL API call...");
-        const query = `
-          query GetUserArticles($username: String!, $publicationId: ObjectId!) {
-            publication(id: $publicationId) {
-              posts(first: 5) {
-                edges {
-                  node {
-                    _id
-                    title
-                    slug
-                  }
-                }
-              }
-            }
-          }
-        `;
+        // Load articles
+        const articlesResult = await SimplifiedHashnodeApi.fetchArticles(20);
+        setArticles(articlesResult.articles);
 
-        const variables = {
-          username: config.hashnode.username,
-          publicationId: config.hashnode.publicationId,
-        };
-
-        console.log("GraphQL Variables:", variables);
-        console.log("API Key present:", !!config.hashnode.apiKey);
-
-        const result = await fetchHashnodeQuery(query, variables);
-        console.log("Direct API test result:", result);
-
-        // Check if we're getting any data
-        const posts = result?.publication?.posts?.edges || [];
-        console.log(`Direct API returned ${posts.length} posts`);
-
-        if (posts.length === 0) {
-          console.error("API is not returning any posts. Possible issues:");
-          console.error("1. Publication ID may be incorrect");
-          console.error("2. API key may be invalid");
-          console.error("3. Username may be incorrect");
-          console.error("4. Publication may have no posts");
-        }
+        // Load Gumroad products
+        const response = await fetch("/api/gumroad/products");
+        const productsData = await response.json();
+        setProducts(
+          productsData.map((product: any) => ({
+            id: product.id,
+            title: product.name,
+            description: product.description,
+            price: product.price,
+            currency: product.currency,
+            coverImage: product.thumbnail_url,
+            rating: product.rating || 4.5,
+            downloads: product.downloads || 0,
+            url: product.url,
+            tags: product.tags || [],
+          }))
+        );
       } catch (error) {
-        console.error("Direct API test failed:", error);
+        console.error("Error loading data:", error);
       }
-    }
+    };
 
-    testDirectAPI();
+    loadData();
   }, []);
 
-  // Handle search
-  useEffect(() => {
-    if (searchQuery.length >= 2 && articles.length > 0) {
-      const filtered = articles.filter(
-        (article) =>
-          article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (article.brief &&
-            article.brief.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-      setSearchResults(filtered.slice(0, 3)); // Limit to 3 results
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery, articles]);
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+  // Transform articles to match MacOSArticleCard props
+  const transformedArticles = articles.map((article) => ({
+    title: article.title,
+    slug: article.slug,
+    coverImage: article.coverImage || "",
+    description: article.brief || "",
+    readingTime: article.readingTime || "5 min",
+    publishedAt: article.publishedAt,
+    author: {
+      name: article.author?.name || "Unknown",
+      username:
+        article.author?.name?.toLowerCase().replace(/\s+/g, "") || "unknown",
+      avatar: article.author?.image || "",
     },
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-      },
+    category: {
+      name: article.tags?.[0]?.name || "General",
+      slug: article.tags?.[0]?.slug || "general",
     },
+    tags:
+      article.tags?.map((tag) => ({
+        name: tag.name,
+        slug: tag.slug || tag.name.toLowerCase().replace(/\s+/g, "-"),
+        color: tag.color || "#007AFF",
+      })) || [],
+    aiSummary: article.brief?.slice(0, 150) + "...",
+  }));
+
+  // Transform categories for OrbitalCategoryUniverse with icons and colors
+  const categoryIcons: { [key: string]: React.ReactNode } = {
+    "Web Development": <Code2 className="w-4 h-4" />,
+    Tutorials: <BookOpen className="w-4 h-4" />,
+    "AI & ML": <Sparkles className="w-4 h-4" />,
+    DevOps: <Terminal className="w-4 h-4" />,
+    Database: <Database className="w-4 h-4" />,
+    Cloud: <Cloud className="w-4 h-4" />,
+    Security: <Lock className="w-4 h-4" />,
+    Testing: <TestTube className="w-4 h-4" />,
+    Design: <Palette className="w-4 h-4" />,
+    Mobile: <Smartphone className="w-4 h-4" />,
+    Backend: <Server className="w-4 h-4" />,
+    Frontend: <Globe className="w-4 h-4" />,
+    Architecture: <Cpu className="w-4 h-4" />,
+    Networking: <Network className="w-4 h-4" />,
+    Cybersecurity: <Shield className="w-4 h-4" />,
+    Performance: <Zap className="w-4 h-4" />,
+    "System Design": <Layers className="w-4 h-4" />,
+    Microservices: <Boxes className="w-4 h-4" />,
+    "Version Control": <GitBranch className="w-4 h-4" />,
+    "CI/CD": <Workflow className="w-4 h-4" />,
   };
 
-  const fetchArticles = async (options: { cursor?: string }) => {
-    try {
-      console.log("Fetching articles with options:", options);
-
-      // Use fetchAndCacheAllArticles directly for better reliability
-      const allArticles = await fetchAndCacheAllArticles();
-
-      // Implement pagination manually
-      const pageSize = 10;
-      const pageNum = options.cursor ? parseInt(options.cursor) : 1;
-      const startIndex = (pageNum - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-
-      const paginatedArticles = allArticles.slice(startIndex, endIndex);
-      const hasMore = endIndex < allArticles.length;
-
-      // Transform HashnodeArticle[] to the format expected by ArticleList
-      return {
-        articles: paginatedArticles.map(
-          (article: HashnodeArticle): ArticleListArticle => ({
-            title: article.title,
-            slug: article.slug,
-            coverImage: article.coverImage || "",
-            description: article.brief || "",
-            readingTime: article.readingTime || "5 min read",
-            publishedAt: article.publishedAt || new Date().toISOString(),
-            author: {
-              name: article.author?.name || "Unknown",
-              username:
-                article.author?.name?.toLowerCase().replace(/\s+/g, "") ||
-                "unknown",
-              avatar: article.author?.image || "/placeholder-avatar.png",
-            },
-            category: {
-              name: article.tags?.[0]?.name || "Uncategorized",
-              slug: article.tags?.[0]?.slug || "uncategorized",
-            },
-            tags:
-              article.tags?.map((tag) => ({
-                name: tag.name,
-                slug: tag.slug || tag.name.toLowerCase().replace(/\s+/g, "-"),
-                color: tag.color || "#007AFF",
-              })) || [],
-          })
-        ),
-        hasMore: hasMore,
-        endCursor: hasMore ? String(pageNum + 1) : undefined,
-      };
-    } catch (error) {
-      console.error("Error fetching articles:", error);
-      return { articles: [], hasMore: false };
-    }
+  const categoryColors: { [key: string]: string } = {
+    "Web Development": "#4F46E5",
+    Tutorials: "#10B981",
+    "AI & ML": "#8B5CF6",
+    DevOps: "#F59E0B",
+    Database: "#EC4899",
+    Cloud: "#3B82F6",
+    Security: "#EF4444",
+    Testing: "#14B8A6",
+    Design: "#F43F5E",
+    Mobile: "#6366F1",
+    Backend: "#0EA5E9",
+    Frontend: "#06B6D4",
+    Architecture: "#7C3AED",
+    Networking: "#2563EB",
+    Cybersecurity: "#DC2626",
+    Performance: "#FBBF24",
+    "System Design": "#8B5CF6",
+    Microservices: "#EC4899",
+    "Version Control": "#10B981",
+    "CI/CD": "#F59E0B",
   };
 
-  // Transform article to match FeaturedArticle props
-  const transformArticleForFeatured = (article: HashnodeArticle) => {
-    return {
-      title: article.title,
-      slug: article.slug,
-      coverImage: article.coverImage || "",
-      description: article.brief || "",
-      readingTime: article.readingTime || "5 min",
-      publishedAt: article.publishedAt,
-      author: {
-        name: article.author?.name || "Unknown",
-        username: article.author?.username || "",
-        avatar: article.author?.image || "",
-      },
-      category: {
-        name: article.tags?.[0]?.name || "General",
-        slug: article.tags?.[0]?.slug || "general",
-      },
-      tags: article.tags || [],
-    };
+  // Transform categories with enhanced data
+  const enhancedCategories = articles.reduce(
+    (acc, article) => {
+      const category = article.tags?.[0];
+      if (category) {
+        const existing = acc.find((c) => c.name === category.name);
+        if (existing) {
+          existing.count++;
+        } else {
+          acc.push({
+            name: category.name,
+            slug:
+              category.slug || category.name.toLowerCase().replace(/\s+/g, "-"),
+            count: 1,
+            color: categoryColors[category.name] || "#4F46E5",
+            icon: categoryIcons[category.name] || <Code2 className="w-4 h-4" />,
+          });
+        }
+      }
+      return acc;
+    },
+    [] as Array<{
+      name: string;
+      slug: string;
+      count: number;
+      color: string;
+      icon: React.ReactNode;
+    }>
+  );
+
+  // Sort categories by count
+  enhancedCategories.sort((a, b) => b.count - a.count);
+
+  const handleTagClick = (tag: {
+    name: string;
+    slug: string;
+    color: string;
+  }) => {
+    setSelectedTag(tag);
   };
 
   return (
-    <Providers>
-      <div className="min-h-screen flex flex-col bg-background">
-        <main className="flex-grow">
-          {/* eBook Banner */}
+    <div className="min-h-screen bg-background">
+      {/* Main Content Area */}
+      <div className="relative">
+        {/* Ebook Banner */}
+        <div className="sticky top-0 z-50">
           <EbookBanner />
+        </div>
 
-          {/* Add scroll padding to prevent content from being hidden under the sticky banner */}
-          <div
-            className="container hero px-4 mx-auto pt-8 scroll-mt-64"
-            id="main-content"
-          >
-            {/* Hero Section */}
-            <motion.div
-              ref={headerRef}
-              className="mb-16 text-center relative z-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              style={{ y }}
-            >
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 text-gradient">
-                Welcome to <span className="text-primary">CodeWithShahan</span>
-              </h1>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-                Discover articles and tutorials about full-stack development,
-                clean code, and the latest AI tech trends.
-              </p>
-
-              {/* Navigation buttons */}
-              <div className="flex justify-center gap-4 mb-8">
-                <Link
-                  href={STORE}
-                  className="bg-primary text-primary-foreground px-6 py-3 rounded-md font-medium hover:bg-primary/90 transition-colors"
-                >
-                  Browse Store
-                </Link>
-                <Link
-                  href={CONTACT}
-                  className="bg-secondary text-secondary-foreground px-6 py-3 rounded-md font-medium hover:bg-secondary/80 transition-colors"
-                >
-                  Contact Me
-                </Link>
-              </div>
-
-              {/* Search Section with Live Results */}
-              <div className="relative max-w-md mx-auto">
-                <SearchArticles onSearch={handleSearch} />
-
-                {/* Live Search Results */}
-                {searchResults.length > 0 && (
-                  <motion.div
-                    className="absolute mt-2 w-full bg-background/80 backdrop-blur-lg rounded-lg shadow-lg z-50 overflow-hidden border border-border"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
-                    <ul className="py-2">
-                      {searchResults.map((article) => (
-                        <motion.li
-                          key={article.slug}
-                          className="px-4 py-2 hover:bg-secondary/50 transition-colors"
-                          whileHover={{ x: 5 }}
-                        >
-                          <a
-                            href={`/article/${article.slug}`}
-                            className="block"
-                            onClick={() => setSearchQuery("")}
-                          >
-                            <p className="font-medium text-sm">
-                              {article.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {article.readingTime || "5 min read"}
-                            </p>
-                          </a>
-                        </motion.li>
-                      ))}
-                    </ul>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Trending Tags */}
-              <motion.div
-                className="mt-8 max-w-xl mx-auto"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.5,
-                  duration: 0.5,
-                  ease: [0.23, 1, 0.32, 1],
-                }}
-              >
-                <TrendingTags variant="pills" limit={8} />
-              </motion.div>
-            </motion.div>
-
-            {loading ? (
-              <div className="py-20 text-center">
-                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="mt-4 text-muted-foreground">
-                  Loading articles...
-                </p>
-              </div>
-            ) : error ? (
-              <div className="py-20 text-center">
-                <p className="text-destructive">{error}</p>
-                <button
-                  onClick={loadArticles}
-                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md"
-                >
-                  Try Again
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Featured Article */}
-                {articles.length > 0 && articles[3] && (
-                  <FeaturedArticle
-                    article={{
-                      title: articles[3].title,
-                      slug: articles[3].slug,
-                      coverImage: articles[3].coverImage || "",
-                      description: articles[3].brief || "",
-                      readingTime: articles[3].readingTime || "5 min read",
-                      publishedAt: articles[3].publishedAt,
-                      author: {
-                        name: articles[3].author?.name || "Unknown",
-                        username:
-                          articles[3].author?.name
-                            ?.toLowerCase()
-                            .replace(/\s+/g, "") || "unknown",
-                        avatar:
-                          articles[3].author?.image ||
-                          "/placeholder-avatar.png",
-                      },
-                      category: {
-                        name: articles[3].tags?.[0]?.name || "Uncategorized",
-                        slug: articles[3].tags?.[0]?.slug || "uncategorized",
-                      },
-                      tags:
-                        articles[3].tags?.map((tag) => ({
-                          name: tag.name,
-                          slug: tag.slug,
-                          color: tag.color || "#007AFF",
-                        })) || [],
-                    }}
-                  />
-                )}
-
-                {/* Music Player */}
-                <MusicPlayer />
-
-                {/* Latest Articles */}
-                <div className="mb-16">
-                  <h2 className="text-3xl font-bold mb-8 text-center">
-                    Latest Articles
-                  </h2>
-                  <ArticleList fetchArticles={fetchArticles} />
-                </div>
-
-                {/* Newsletter Section */}
-                <section className="py-16 px-4 md:px-8">
-                  <div className="max-w-3xl mx-auto">
-                    <Newsletter />
-                  </div>
-                </section>
-              </>
-            )}
+        {/* Hero Section with Developer Background */}
+        <div className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+          {/* Developer-themed background */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background/50 via-background/80 to-background">
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+            </div>
           </div>
-        </main>
 
-        <Footer />
+          <div className="relative z-10 text-center px-4 max-w-7xl mx-auto">
+            <h1 className="text-6xl md:text-8xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-primary/60">
+              Code With Shahan
+            </h1>
+
+            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">
+              Discover {enhancedCategories.length} categories of premium
+              articles and tutorials
+            </p>
+
+            {/* MacOS-style Search Bar */}
+            <div className="max-w-2xl mx-auto mb-12">
+              <div className="relative group">
+                <input
+                  type="text"
+                  placeholder="Search articles, tutorials, and more..."
+                  className="w-full px-6 py-4 rounded-2xl bg-background/50 backdrop-blur-xl border border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-300 text-lg"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <kbd className="px-2 py-1 text-xs rounded bg-background/80 border border-border/50 text-muted-foreground">
+                    ⌘K
+                  </kbd>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Access Links */}
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link
+                href="/code-playground"
+                className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
+              >
+                <Code
+                  size={20}
+                  className="text-primary group-hover:scale-110 transition-transform"
+                />
+                <span className="font-medium">Code Playground</span>
+              </Link>
+              <Link
+                href="/tutorials"
+                className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
+              >
+                <BookOpen
+                  size={20}
+                  className="text-primary group-hover:scale-110 transition-transform"
+                />
+                <span className="font-medium">Tutorials</span>
+              </Link>
+              <Link
+                href="/ai-insights"
+                className="group glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 border border-border/50 hover:border-primary/50"
+              >
+                <Sparkles
+                  size={20}
+                  className="text-primary group-hover:scale-110 transition-transform"
+                />
+                <span className="font-medium">AI Insights</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="relative z-10">
+          {/* Featured Articles Section */}
+          <section className="py-20">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-bold">Featured Articles</h2>
+                <Link
+                  href="/articles"
+                  className="flex items-center gap-2 text-primary hover:underline"
+                >
+                  View all articles
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {transformedArticles.slice(0, 3).map((article, index) => (
+                  <MacOSArticleCard
+                    key={article.slug}
+                    article={article}
+                    index={index}
+                    onTagClick={handleTagClick}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Category Ring Section */}
+          <section className="py-20 bg-gradient-to-b from-background to-background/80">
+            <div className="max-w-7xl mx-auto px-4">
+              <h2 className="text-3xl font-bold mb-8 text-center">
+                Explore Topics
+              </h2>
+              <OrbitalCategoryUniverse
+                categories={enhancedCategories}
+                title="Explore Our Categories"
+                description="Discover our comprehensive collection of development topics"
+                isHomePage={true}
+              />
+            </div>
+          </section>
+
+          {/* AI Daily Insight Section */}
+          <section className="py-20">
+            <div className="max-w-3xl mx-auto px-4">
+              <AIDailyInsight />
+            </div>
+          </section>
+
+          {/* Newsletter Section */}
+          <section className="py-20 bg-gradient-to-b from-background/80 to-background">
+            <div className="max-w-3xl mx-auto px-4">
+              <StickyNewsletter />
+            </div>
+          </section>
+
+          {/* Products Section */}
+          <section className="py-20 bg-gradient-to-b from-background/80 to-background">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-bold">Digital Products</h2>
+                <Link
+                  href="/store"
+                  className="flex items-center gap-2 text-primary hover:underline"
+                >
+                  View all products
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {products.map((product, index) => (
+                  <GumroadProductCard
+                    key={product.id}
+                    product={product}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
-    </Providers>
+
+      {/* Tag Articles Panel */}
+      {selectedTag && (
+        <TagArticlesPanel
+          tag={selectedTag}
+          onClose={() => setSelectedTag(null)}
+        />
+      )}
+    </div>
   );
 }
