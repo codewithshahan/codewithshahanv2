@@ -53,21 +53,21 @@ const Scrollbar = ({ className = "" }: ScrollbarProps) => {
 
   return (
     <motion.div
-      className={`fixed right-0 top-0 w-1.5 h-full z-50 pointer-events-none ${className}`}
+      className={`fixed top-0 left-0 w-1.5 h-[calc(100vh-64px)] z-[90] pointer-events-none mt-16 ${className}`}
       style={{
         opacity: isHovered || isDragging ? 1 : 0.5,
       }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
     >
-      {/* Track */}
+      {/* Track with gradient */}
       <div
         className={`absolute inset-0 rounded-full ${
           isDark ? "bg-white/10" : "bg-black/5"
         }`}
       />
 
-      {/* Thumb */}
+      {/* Thumb with enhanced styling */}
       <motion.div
         className={`absolute right-0 w-full rounded-full ${
           isDark
@@ -131,7 +131,7 @@ const Scrollbar = ({ className = "" }: ScrollbarProps) => {
           isDark ? "bg-white/50" : "bg-black/30"
         }`}
         style={{
-          y: useTransform(smoothProgress, [0, 1], [0, window.innerHeight]),
+          y: useTransform(smoothProgress, [0, 1], [0, window.innerHeight - 64]),
         }}
       />
     </motion.div>

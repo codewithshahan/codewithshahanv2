@@ -1,78 +1,186 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Search, X, ArrowRight } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import {
+  Search,
+  X,
+  BookOpen,
+  Tag,
+  Sparkles,
+  Clock,
+  TrendingUp,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { SimplifiedHashnodeApi } from "@/services/hashnodeApi";
+import { HashnodeArticle } from "@/services/articleCacheService";
+import { cn } from "@/lib/utils";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
-// Types for search results
-interface SearchResultItem {
-  id: string;
-  title: string;
-  type: "article" | "category" | "product" | "author";
-  url: string;
-  image?: string;
-  snippet?: string;
+interface GlobalSearchProps {
+  className?: string;
+  onFocusChange?: (focused: boolean) => void;
 }
 
-// Mock data for demo purposes
-const mockSearchResults: SearchResultItem[] = [
-  {
-    id: "1",
-    title: "Getting Started with Next.js 15",
-    type: "article",
-    url: "/articles/getting-started-nextjs",
-    image: "/images/articles/nextjs.jpg",
-    snippet: "Learn how to build modern web applications with Next.js 15...",
-  },
-  {
-    id: "2",
-    title: "React Server Components Explained",
-    type: "article",
-    url: "/articles/react-server-components",
-    snippet: "Understanding the new paradigm of React Server Components...",
-  },
-  {
-    id: "3",
-    title: "JavaScript",
-    type: "category",
-    url: "/categories/javascript",
-  },
-  {
-    id: "4",
-    title: "Premium React Course Bundle",
-    type: "product",
-    url: "/store/react-course-bundle",
-    image: "/images/products/react-bundle.jpg",
-  },
-  {
-    id: "5",
-    title: "Sarah Johnson",
-    type: "author",
-    url: "/authors/sarah-johnson",
-    image: "/images/authors/sarah.jpg",
-  },
-];
-
-// Search categories with icons
+// Enhanced search categories with icons and descriptions
 const searchCategories = [
-  { label: "All", value: "all" },
-  { label: "Articles", value: "article" },
-  { label: "Categories", value: "category" },
-  { label: "Products", value: "product" },
-  { label: "Authors", value: "author" },
+  {
+    label: "All",
+    value: "all",
+    icon: Search,
+    description: "Search across all content",
+  },
+  {
+    label: "Articles",
+    value: "article",
+    icon: BookOpen,
+    description: "Find specific articles",
+  },
+  {
+    label: "Tags",
+    value: "tag",
+    icon: Tag,
+    description: "Browse by topics",
+  },
+  {
+    label: "Trending",
+    value: "trending",
+    icon: TrendingUp,
+    description: "Popular content",
+  },
+  {
+    label: "Recent",
+    value: "recent",
+    icon: Clock,
+    description: "Latest articles",
+  },
 ];
 
-export default function GlobalSearch() {
+export default function GlobalSearch({
+  className,
+  onFocusChange,
+}: GlobalSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
-  const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [results, setResults] = useState<HashnodeArticle[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [trendingTags, setTrendingTags] = useState<
+    Array<{ name: string; slug: string; count: number }>
+  >([]);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const isTablet = useMediaQuery("(max-width: 1024px)");
+
+  // Fetch trending tags
+  useEffect(() => {
+    const fetchTrendingTags = async () => {
+      try {
+        const articles = await SimplifiedHashnodeApi.fetchArticles(50);
+        const tagCounts = articles.articles.reduce(
+          (acc: { [key: string]: number }, article) => {
+            article.tags?.forEach((tag) => {
+              acc[tag.name] = (acc[tag.name] || 0) + 1;
+            });
+            return acc;
+          },
+          {}
+        );
+
+        const sortedTags = Object.entries(tagCounts)
+          .map(([name, count]) => ({
+            name,
+            slug: name.toLowerCase().replace(/\s+/g, "-"),
+            count,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+
+        setTrendingTags(sortedTags);
+      } catch (error) {
+        console.error("Error fetching trending tags:", error);
+      }
+    };
+
+    fetchTrendingTags();
+  }, []);
+
+  // Enhanced search logic with category-specific fetching
+  useEffect(() => {
+    const searchTimeout = setTimeout(async () => {
+      if (
+        query.length < 2 &&
+        activeCategory !== "trending" &&
+        activeCategory !== "recent"
+      ) {
+        setResults([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const articles = await SimplifiedHashnodeApi.fetchArticles(50);
+        let filtered = articles.articles;
+
+        // Category-specific filtering
+        switch (activeCategory) {
+          case "trending":
+            // Sort by date and popularity (you can add more sophisticated ranking)
+            filtered = articles.articles
+              .sort(
+                (a, b) =>
+                  new Date(b.publishedAt).getTime() -
+                  new Date(a.publishedAt).getTime()
+              )
+              .slice(0, 10);
+            break;
+          case "recent":
+            filtered = articles.articles
+              .sort(
+                (a, b) =>
+                  new Date(b.publishedAt).getTime() -
+                  new Date(a.publishedAt).getTime()
+              )
+              .slice(0, 10);
+            break;
+          case "tag":
+            if (query.length >= 2) {
+              filtered = articles.articles.filter((article) =>
+                article.tags?.some((tag) =>
+                  tag.name.toLowerCase().includes(query.toLowerCase())
+                )
+              );
+            }
+            break;
+          default:
+            if (query.length >= 2) {
+              filtered = articles.articles.filter((article) => {
+                const matchesQuery =
+                  article.title.toLowerCase().includes(query.toLowerCase()) ||
+                  article.brief?.toLowerCase().includes(query.toLowerCase()) ||
+                  article.tags?.some((tag) =>
+                    tag.name.toLowerCase().includes(query.toLowerCase())
+                  );
+                return matchesQuery;
+              });
+            }
+        }
+
+        setResults(filtered);
+      } catch (error) {
+        console.error("Search error:", error);
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(searchTimeout);
+  }, [query, activeCategory]);
 
   // Close search on click outside
   useEffect(() => {
@@ -82,6 +190,7 @@ export default function GlobalSearch() {
         !searchRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        onFocusChange?.(false);
       }
     };
 
@@ -89,7 +198,7 @@ export default function GlobalSearch() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [onFocusChange]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -110,46 +219,27 @@ export default function GlobalSearch() {
         case "Enter":
           e.preventDefault();
           if (selectedIndex >= 0 && results[selectedIndex]) {
-            router.push(results[selectedIndex].url);
+            router.push(`/blog/${results[selectedIndex].slug}`);
             setIsOpen(false);
+            onFocusChange?.(false);
           }
           break;
         case "Escape":
           e.preventDefault();
           setIsOpen(false);
+          onFocusChange?.(false);
           break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, results, selectedIndex, router]);
-
-  // Search logic
-  useEffect(() => {
-    if (query.length < 2) {
-      setResults([]);
-      return;
-    }
-
-    // Filter by query and category
-    const filtered = mockSearchResults.filter((item) => {
-      const matchesQuery =
-        item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.snippet?.toLowerCase().includes(query.toLowerCase());
-      const matchesCategory =
-        activeCategory === "all" || item.type === activeCategory;
-      return matchesQuery && matchesCategory;
-    });
-
-    setResults(filtered);
-    setSelectedIndex(-1);
-  }, [query, activeCategory]);
+  }, [isOpen, results, selectedIndex, router, onFocusChange]);
 
   // Handle search open
   const handleSearchOpen = () => {
     setIsOpen(true);
-    // Focus the input after a short delay to ensure the animation has started
+    onFocusChange?.(true);
     setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
@@ -160,26 +250,70 @@ export default function GlobalSearch() {
     setIsOpen(false);
     setQuery("");
     setResults([]);
+    onFocusChange?.(false);
   };
 
   // Handle result selection
-  const handleResultClick = (url: string) => {
-    router.push(url);
+  const handleResultClick = (slug: string) => {
+    router.push(`/blog/${slug}`);
     handleSearchClose();
   };
 
+  // Add scroll lock when search is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = "var(--scrollbar-width)";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [isOpen]);
+
   return (
-    <div className="relative z-50" ref={searchRef}>
+    <div className={cn("relative z-[9999]", className)} ref={searchRef}>
       {/* Search Trigger Button */}
       <button
         onClick={handleSearchOpen}
-        className="flex items-center gap-2 text-sm rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-md px-4 py-2 
-                  hover:bg-white/15 dark:hover:bg-white/10 transition-all duration-200 border border-white/10 
-                  text-gray-700 dark:text-gray-200"
+        className={cn(
+          "flex items-center gap-2 text-sm rounded-full",
+          "bg-white/80 dark:bg-white/5 backdrop-blur-md",
+          "hover:bg-white/90 dark:hover:bg-white/10 transition-all duration-200",
+          "border border-gray-200 dark:border-white/10",
+          "text-gray-700 dark:text-gray-200 w-full",
+          "shadow-sm dark:shadow-none",
+          isMobile ? "px-3 py-1.5" : "px-4 py-2"
+        )}
         aria-label="Search"
       >
-        <Search size={16} />
-        <span className="hidden sm:inline">Search anything...</span>
+        <Search
+          size={isMobile ? 14 : 16}
+          className="text-gray-500 dark:text-gray-400"
+        />
+        <span
+          className={cn(
+            "flex-1 text-left truncate",
+            isMobile ? "text-xs" : "text-sm",
+            "text-gray-500 dark:text-gray-400"
+          )}
+        >
+          {isMobile ? "Search articles..." : "Search articles, tags..."}
+        </span>
+        <kbd
+          className={cn(
+            "hidden md:inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded",
+            "border border-gray-200 dark:border-white/10",
+            "bg-gray-50 dark:bg-white/5",
+            "text-gray-500 dark:text-gray-400",
+            isTablet && "hidden"
+          )}
+        >
+          <span className="text-[10px]">⌘</span>K
+        </kbd>
       </button>
 
       {/* Search Modal */}
@@ -190,135 +324,205 @@ export default function GlobalSearch() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="absolute mt-2 w-screen max-w-lg right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl 
-                      rounded-xl shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden"
-            style={{ maxHeight: "80vh" }}
+            className={cn(
+              "fixed inset-x-0 top-0 mt-0",
+              "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
+              "shadow-lg dark:shadow-none",
+              "border-b border-gray-200 dark:border-white/10",
+              isMobile ? "h-screen" : "mt-2 rounded-xl max-h-[80vh]",
+              isTablet ? "max-w-xl mx-auto" : "max-w-2xl mx-auto",
+              "z-[9999]"
+            )}
           >
             {/* Search Header */}
-            <div className="p-4 border-b border-white/10 dark:border-white/5">
+            <div
+              className={cn(
+                "border-b border-gray-200 dark:border-white/10",
+                isMobile ? "p-3" : "p-4"
+              )}
+            >
               <div className="flex items-center gap-3">
-                <Search size={18} className="text-gray-400" />
+                <Search size={isMobile ? 16 : 18} className="text-gray-400" />
                 <input
                   ref={inputRef}
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search articles, categories, products..."
-                  className="flex-1 bg-transparent border-none outline-none text-base"
+                  placeholder="Search articles, tags..."
+                  className={cn(
+                    "flex-1 bg-transparent border-none outline-none",
+                    "placeholder-gray-400 dark:placeholder-gray-500",
+                    isMobile ? "text-sm" : "text-base",
+                    "text-gray-900 dark:text-gray-100"
+                  )}
                   autoComplete="off"
                 />
                 <button
                   onClick={handleSearchClose}
-                  className="rounded-full p-1 hover:bg-white/10 transition-colors"
+                  className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                 >
-                  <X size={18} className="text-gray-400" />
+                  <X size={isMobile ? 16 : 18} className="text-gray-400" />
                 </button>
               </div>
             </div>
 
             {/* Category Filters */}
-            <div className="px-2 pt-2 flex gap-2 overflow-x-auto scrollbar-hide">
+            <div
+              className={cn(
+                "flex gap-2 overflow-x-auto scrollbar-hide",
+                "border-b border-gray-200 dark:border-white/10",
+                isMobile ? "px-3 pt-2 pb-1" : "px-4 pt-3 pb-2"
+              )}
+            >
               {searchCategories.map((category) => (
                 <button
                   key={category.value}
                   onClick={() => setActiveCategory(category.value)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors
-                            ${
-                              activeCategory === category.value
-                                ? "bg-blue-500 text-white"
-                                : "bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                            }`}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
+                    activeCategory === category.value
+                      ? "bg-primary text-white shadow-lg shadow-primary/20"
+                      : "bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+                  )}
                 >
+                  <category.icon size={14} />
                   {category.label}
                 </button>
               ))}
             </div>
 
             {/* Search Results */}
-            <div className="p-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
-              {query.length < 2 ? (
-                <div className="p-4 text-center text-sm text-gray-500">
-                  Start typing to search...
+            <div
+              className={cn(
+                "overflow-y-auto",
+                "custom-scrollbar",
+                "scrollbar-track-background/20",
+                "scrollbar-thumb-primary/40",
+                "hover:scrollbar-thumb-primary/60",
+                "scrollbar-thumb-rounded-full",
+                "transition-all duration-300",
+                isMobile ? "h-[calc(100vh-120px)]" : "max-h-[calc(80vh-120px)]"
+              )}
+            >
+              {activeCategory === "trending" && !query && (
+                <div className={cn("p-4", isMobile && "p-3")}>
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Trending Topics
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {trendingTags.map((tag) => (
+                      <button
+                        key={tag.slug}
+                        onClick={() => {
+                          setQuery(tag.name);
+                          setActiveCategory("tag");
+                        }}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {query.length < 2 &&
+              activeCategory !== "trending" &&
+              activeCategory !== "recent" ? (
+                <div className={cn("p-8 text-center", isMobile && "p-6")}>
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Search size={24} className="text-primary" />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Start typing to search...
+                  </p>
+                </div>
+              ) : isLoading ? (
+                <div className={cn("p-8 text-center", isMobile && "p-6")}>
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
+                    <Search size={24} className="text-primary" />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Searching...
+                  </p>
                 </div>
               ) : results.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500">
-                  No results found for "{query}"
+                <div className={cn("p-8 text-center", isMobile && "p-6")}>
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                    <X size={24} className="text-red-500" />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No results found for "{query}"
+                  </p>
                 </div>
               ) : (
-                <ul className="space-y-1">
+                <ul className="divide-y divide-gray-200 dark:divide-white/10">
                   {results.map((result, index) => (
                     <motion.li
-                      key={result.id}
+                      key={result.slug}
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.15, delay: index * 0.05 }}
                     >
                       <button
-                        onClick={() => handleResultClick(result.url)}
-                        className={`w-full text-left p-3 rounded-lg flex gap-3 transition-colors
-                                ${
-                                  selectedIndex === index
-                                    ? "bg-blue-500/10 dark:bg-blue-500/20"
-                                    : "hover:bg-white/10 dark:hover:bg-white/5"
-                                }`}
-                        onMouseEnter={() => setSelectedIndex(index)}
+                        onClick={() => handleResultClick(result.slug)}
+                        className={cn(
+                          "w-full text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors",
+                          isMobile ? "p-3" : "p-4",
+                          selectedIndex === index &&
+                            "bg-gray-50 dark:bg-white/5"
+                        )}
                       >
-                        {/* Result image or type icon */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                          {result.image ? (
-                            <Image
-                              src={result.image}
-                              alt={result.title}
-                              width={40}
-                              height={40}
-                              className="object-cover w-full h-full"
-                            />
-                          ) : (
-                            <span className="text-xs font-medium uppercase">
-                              {result.type.substring(0, 1)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Result details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-medium truncate">
-                              {result.title}
-                            </h4>
-                            <span
-                              className={`
-                              text-xs px-2 py-0.5 rounded-full ml-2 capitalize
-                              ${
-                                result.type === "article"
-                                  ? "bg-blue-500/10 text-blue-500"
-                                  : ""
-                              }
-                              ${
-                                result.type === "category"
-                                  ? "bg-purple-500/10 text-purple-500"
-                                  : ""
-                              }
-                              ${
-                                result.type === "product"
-                                  ? "bg-green-500/10 text-green-500"
-                                  : ""
-                              }
-                              ${
-                                result.type === "author"
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : ""
-                              }
-                            `}
+                        <div className="flex items-start gap-4">
+                          {result.coverImage && (
+                            <div
+                              className={cn(
+                                "rounded-lg overflow-hidden flex-shrink-0",
+                                isMobile ? "w-12 h-12" : "w-16 h-16"
+                              )}
                             >
-                              {result.type}
-                            </span>
-                          </div>
-                          {result.snippet && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
-                              {result.snippet}
-                            </p>
+                              <Image
+                                src={result.coverImage}
+                                alt={result.title}
+                                width={isMobile ? 48 : 64}
+                                height={isMobile ? 48 : 64}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
                           )}
+                          <div className="flex-1 min-w-0">
+                            <h3
+                              className={cn(
+                                "font-medium text-gray-900 dark:text-gray-100 mb-1 truncate",
+                                isMobile ? "text-sm" : "text-base"
+                              )}
+                            >
+                              {result.title}
+                            </h3>
+                            <p
+                              className={cn(
+                                "text-gray-500 dark:text-gray-400 line-clamp-2",
+                                isMobile ? "text-xs" : "text-sm"
+                              )}
+                            >
+                              {result.brief}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              {result.tags?.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag.slug}
+                                  className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary"
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {new Date(
+                                  result.publishedAt
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </button>
                     </motion.li>
@@ -326,22 +530,6 @@ export default function GlobalSearch() {
                 </ul>
               )}
             </div>
-
-            {/* Search Footer */}
-            {results.length > 0 && (
-              <div className="p-3 border-t border-white/10 dark:border-white/5 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center">
-                <span>{results.length} results</span>
-                <button
-                  onClick={() =>
-                    router.push(`/search?q=${encodeURIComponent(query)}`)
-                  }
-                  className="flex items-center gap-1 text-blue-500 hover:text-blue-600 transition-colors"
-                >
-                  <span>View all results</span>
-                  <ArrowRight size={12} />
-                </button>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

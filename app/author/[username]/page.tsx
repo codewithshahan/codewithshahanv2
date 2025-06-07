@@ -8,69 +8,52 @@ export async function generateMetadata({
 }: {
   params: { username: string };
 }): Promise<Metadata> {
-  const { username } = params;
+  const author = await fetchAuthorByUsername(params.username);
 
-  // Log the params at the server level
-  console.log("Server component params:", params);
-
-  // Fetch author data for metadata
-  try {
-    const author = await fetchAuthorByUsername(username);
-
-    const title = `${author.name} - Developer & Technical Writer`;
-    const description =
-      author.bio?.substring(0, 155) ||
-      `Explore articles, tutorials, and insights from ${username} on web development, programming, and technology topics.`;
-
+  if (!author) {
     return {
-      title,
-      description,
-      openGraph: {
-        title,
-        description,
-        type: "profile",
-        url: `https://codewithshahan.com/author/${username}`,
-        images: author.avatar ? [{ url: author.avatar }] : [],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title,
-        description,
-        images: author.avatar ? [author.avatar] : [],
-      },
-      alternates: {
-        canonical: `https://codewithshahan.com/author/${username}`,
-      },
-    };
-  } catch (error) {
-    // Fallback metadata if author fetch fails
-    return {
-      title: "Author Profile",
-      description: `Explore articles and insights from ${username} on web development and programming.`,
+      title: "Author Not Found",
+      description: "The requested author could not be found.",
     };
   }
+
+  return {
+    title: `${author.name} - Code With Shahan`,
+    description: author.bio || `Articles and tutorials by ${author.name}`,
+    openGraph: {
+      title: `${author.name} - Code With Shahan`,
+      description: author.bio || `Articles and tutorials by ${author.name}`,
+      images: author.avatar ? [author.avatar] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${author.name} - Code With Shahan`,
+      description: author.bio || `Articles and tutorials by ${author.name}`,
+      images: author.avatar ? [author.avatar] : [],
+    },
+  };
 }
 
 // Server component page - delegates rendering to client component
-export default function AuthorPage({
+export default async function AuthorPage({
   params,
 }: {
   params: { username: string };
 }) {
-  // Log the params before passing to client component
-  console.log("Passing params to client:", params);
+  const author = await fetchAuthorByUsername(params.username);
 
-  // Explicitly extract and pass the username to ensure it's defined
-  // Use codewithshahan as a fallback if the URL parameter is undefined
-  const username = params?.username || "codewithshahan";
-
-  // If params.username is undefined but we're using the fallback, log a warning
-  if (!params?.username) {
-    console.warn(
-      "Username parameter is missing, using fallback: codewithshahan"
+  if (!author) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4">Author Not Found</h1>
+          <p className="text-muted-foreground">
+            The requested author could not be found.
+          </p>
+        </div>
+      </div>
     );
   }
 
-  // Always pass a valid username to the client component
-  return <AuthorPageClient params={{ username }} />;
+  return <AuthorPageClient params={{ username: params.username }} />;
 }

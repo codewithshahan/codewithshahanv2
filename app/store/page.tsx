@@ -31,13 +31,14 @@ import {
   ArrowDown,
   Search,
   Sparkles,
-  CircleAlert,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Balancer from "react-wrap-balancer";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
+import { ScrollContainer, ScrollSection } from "@/components/ui/scroll";
+import { useVirtualizer, VirtualItem } from "@tanstack/react-virtual";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -52,12 +53,10 @@ import SectionTransition, {
 } from "@/components/SectionTransition";
 import FloatingGumroadCard from "@/components/category/FloatingGumroadCard";
 
-// Dynamically import particle system for better performance
+// Optimize particle system rendering
 const ParticleSystem = dynamic(() => import("@/components/ParticleSystem"), {
   ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 bg-gradient-to-b from-background/5 to-background/80" />
-  ),
+  loading: () => null, // Remove loading placeholder for faster initial render
 });
 
 // Animation variants for staggered grid items
@@ -144,6 +143,133 @@ const GlowingTitle: React.FC<GlowingTitleProps> = ({ children }) => {
     </motion.h1>
   );
 };
+
+// Optimize background elements with useCallback
+const BackgroundElements = React.memo(() => {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const { clientX, clientY } = e;
+      mouseX.set(clientX - window.innerWidth / 2);
+      mouseY.set(clientY - window.innerHeight / 2);
+    },
+    [mouseX, mouseY]
+  );
+
+  return (
+    <div
+      className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[0]"
+      onMouseMove={handleMouseMove}
+    >
+      {/* Simplified background with fewer elements */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,_var(--tw-gradient-stops))] from-background/70 via-background/65 to-[#050b1f]/80" />
+
+      {/* Optimized star field with fewer stars */}
+      <div className="absolute inset-0">
+        {[...Array(100)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              width: `${Math.random() > 0.95 ? 2 : 1}px`,
+              height: `${Math.random() > 0.95 ? 2 : 1}px`,
+              opacity: Math.random() * 0.8 + 0.2,
+            }}
+            animate={{
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 2 + Math.random() * 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Simplified nebula effects */}
+      <motion.div
+        className="absolute top-[5%] right-[5%] w-[55%] h-[45%] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-gradient-to-br from-primary/20 via-accent/10 to-transparent blur-3xl"
+        animate={{
+          scale: [1, 1.05, 1],
+          opacity: [0.45, 0.55, 0.45],
+        }}
+        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+      />
+    </div>
+  );
+});
+
+BackgroundElements.displayName = "BackgroundElements";
+
+// Optimize product grid with virtualization
+const ProductGrid = React.memo(
+  ({ products }: { products: GumroadProduct[] }) => {
+    const parentRef = useRef<HTMLDivElement>(null);
+    const rowVirtualizer = useVirtualizer({
+      count: Math.ceil(products.length / 3),
+      getScrollElement: () => parentRef.current,
+      estimateSize: () => 400, // Approximate height of each row
+      overscan: 2,
+    });
+
+    return (
+      <div ref={parentRef} className="h-[800px] overflow-auto">
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
+            const startIndex = virtualRow.index * 3;
+            const rowProducts = products.slice(startIndex, startIndex + 3);
+
+            return (
+              <div
+                key={virtualRow.index}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+              >
+                {rowProducts.map((product, idx) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  >
+                    <Product3DCard
+                      {...product}
+                      thumbnailUrl={
+                        product.thumbnail_url ||
+                        "/images/products/placeholder.jpg"
+                      }
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+);
+
+ProductGrid.displayName = "ProductGrid";
 
 export default function StorePage() {
   // Theme hook for controlling dark mode
@@ -355,6 +481,46 @@ export default function StorePage() {
     setProductModalIndex(null);
   };
 
+  // Define sections for scroll indicator - dynamically include all sections
+  const sections = [
+    "store-hero",
+    "store-featured",
+    "store-categories",
+    "store-products",
+    "store-newsletter",
+    // Add any additional sections that should be tracked
+  ];
+
+  // Add useEffect to dynamically update sections based on visible elements
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const sectionId = entry.target.id;
+            if (sectionId && !sections.includes(sectionId)) {
+              sections.push(sectionId);
+            }
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: "0px",
+        threshold: 0.1,
+      }
+    );
+
+    // Observe all elements with IDs
+    document.querySelectorAll("[id]").forEach((element) => {
+      observer.observe(element);
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -364,23 +530,14 @@ export default function StorePage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-60" />
 
           <motion.div
-            className="w-16 h-16 border-t-4 border-r-4 border-primary border-solid rounded-full"
+            className="w-12 h-12 border-2 border-primary/30 border-t-primary rounded-full"
             animate={{ rotate: 360 }}
             transition={{
-              duration: 1.5,
+              duration: 1,
               repeat: Infinity,
               ease: "linear",
             }}
           />
-
-          <motion.div
-            className="absolute text-primary/80 font-light"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 0.5 }}
-          >
-            Loading premium content...
-          </motion.div>
         </main>
         <Footer />
       </div>
@@ -388,349 +545,201 @@ export default function StorePage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col bg-background relative overflow-x-hidden"
-      onMouseMove={handleMouseMove}
-    >
-      <Navbar />
+    <ScrollContainer sections={sections}>
+      <div className="min-h-screen flex flex-col bg-background relative overflow-x-hidden">
+        <Navbar />
 
-      {/* Clean Code Challenge Banner at the very top */}
-      <div className="relative z-50 pt-20">
-        {featuredProduct && <Clean3DCodeBanner product={featuredProduct} />}
-      </div>
+        {/* Clean Code Challenge Banner at the very top */}
+        <div className="relative z-50 pt-20">
+          {featuredProduct && <Clean3DCodeBanner product={featuredProduct} />}
+        </div>
 
-      <main className="flex-grow">
-        {/* Ultra-Premium Vector Universe Background */}
-        <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[0]">
-          {/* Deep space backdrop with advanced gradient */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,_var(--tw-gradient-stops))] from-background/70 via-background/65 to-[#050b1f]/80" />
+        <main className="flex-grow">
+          {/* Optimized background elements */}
+          <BackgroundElements />
 
-          {/* Volumetric light beam - creates a premium studio spotlight effect */}
-          <div className="absolute top-0 right-[20%] w-[40%] h-[70%] bg-gradient-to-b from-primary/10 via-primary/5 to-transparent opacity-60 blur-3xl transform -rotate-[30deg] scale-y-150" />
+          {/* Ultra-Premium Vector Universe Background */}
+          <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[0]">
+            {/* Deep space backdrop with advanced gradient */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,_var(--tw-gradient-stops))] from-background/70 via-background/65 to-[#050b1f]/80" />
 
-          {/* High-density star field with size variance */}
-          <div className="absolute inset-0">
-            {[...Array(200)].map((_, i) => (
-              <motion.div
-                key={i}
-                className={`absolute rounded-full ${
-                  Math.random() > 0.97
-                    ? "bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.4)]"
-                    : Math.random() > 0.9
-                    ? "bg-blue-50 shadow-[0_0_4px_1px_rgba(200,220,255,0.3)]"
-                    : "bg-white"
-                }`}
-                style={{
-                  top: `${Math.random() * 100}%`,
-                  left: `${Math.random() * 100}%`,
-                  width: `${
-                    Math.random() > 0.95 ? 3 : Math.random() > 0.85 ? 2 : 1
-                  }px`,
-                  height: `${
-                    Math.random() > 0.95 ? 3 : Math.random() > 0.85 ? 2 : 1
-                  }px`,
-                  opacity: Math.random() * 0.8 + 0.2,
-                  zIndex: Math.random() > 0.95 ? 2 : 1,
-                }}
-                animate={{
-                  opacity: [
-                    Math.random() * 0.5 + 0.3,
-                    Math.random() * 0.9 + 0.6,
-                    Math.random() * 0.5 + 0.3,
-                  ],
-                  scale: [1, Math.random() > 0.9 ? 1.8 : 1.3, 1],
-                }}
-                transition={{
-                  duration: 2 + Math.random() * 5,
-                  repeat: Infinity,
-                  delay: Math.random() * 5,
-                  ease: "easeInOut",
-                }}
-              />
-            ))}
-          </div>
+            {/* Volumetric light beam - creates a premium studio spotlight effect */}
+            <div className="absolute top-0 right-[20%] w-[40%] h-[70%] bg-gradient-to-b from-primary/10 via-primary/5 to-transparent opacity-60 blur-3xl transform -rotate-[30deg] scale-y-150" />
 
-          {/* Multicolor nebula system - photorealistic cosmic clouds */}
-          <motion.div
-            className="absolute top-[5%] right-[5%] w-[55%] h-[45%] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-gradient-to-br from-primary/20 via-accent/10 to-transparent blur-3xl"
-            animate={{
-              scale: [1, 1.05, 1],
-              opacity: [0.45, 0.55, 0.45],
-              borderRadius: [
-                "40% 60% 70% 30% / 40% 50% 60% 50%",
-                "50% 40% 60% 50% / 60% 40% 50% 40%",
-                "40% 60% 70% 30% / 40% 50% 60% 50%",
-              ],
-            }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-          />
+            {/* High-density star field with size variance */}
+            <div className="absolute inset-0">
+              {[...Array(200)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className={`absolute rounded-full ${
+                    Math.random() > 0.97
+                      ? "bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.4)]"
+                      : Math.random() > 0.9
+                      ? "bg-blue-50 shadow-[0_0_4px_1px_rgba(200,220,255,0.3)]"
+                      : "bg-white"
+                  }`}
+                  style={{
+                    top: `${Math.random() * 100}%`,
+                    left: `${Math.random() * 100}%`,
+                    width: `${
+                      Math.random() > 0.95 ? 3 : Math.random() > 0.85 ? 2 : 1
+                    }px`,
+                    height: `${
+                      Math.random() > 0.95 ? 3 : Math.random() > 0.85 ? 2 : 1
+                    }px`,
+                    opacity: Math.random() * 0.8 + 0.2,
+                    zIndex: Math.random() > 0.95 ? 2 : 1,
+                  }}
+                  animate={{
+                    opacity: [
+                      Math.random() * 0.5 + 0.3,
+                      Math.random() * 0.9 + 0.6,
+                      Math.random() * 0.5 + 0.3,
+                    ],
+                    scale: [1, Math.random() > 0.9 ? 1.8 : 1.3, 1],
+                  }}
+                  transition={{
+                    duration: 2 + Math.random() * 5,
+                    repeat: Infinity,
+                    delay: Math.random() * 5,
+                    ease: "easeInOut",
+                  }}
+                />
+              ))}
+            </div>
 
-          <motion.div
-            className="absolute bottom-[10%] left-[10%] w-[45%] h-[50%] rounded-[50%_40%_30%_60%/40%_60%_70%_50%] bg-gradient-to-tr from-accent/20 via-secondary/15 to-transparent blur-3xl"
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.35, 0.45, 0.35],
-              y: [0, -20, 0],
-              borderRadius: [
-                "50% 40% 30% 60% / 40% 60% 70% 50%",
-                "40% 50% 40% 50% / 30% 50% 60% 60%",
-                "50% 40% 30% 60% / 40% 60% 70% 50%",
-              ],
-            }}
-            transition={{
-              duration: 23,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 3,
-            }}
-          />
-
-          {/* Rich-color distant nebula systems */}
-          <motion.div
-            className="absolute top-[30%] right-[25%] w-[35%] h-[25%] rounded-[60%_40%_30%_70%/50%_30%_70%_50%] bg-gradient-to-br from-secondary/20 via-purple-500/10 to-transparent blur-3xl"
-            animate={{
-              scale: [1, 1.15, 1],
-              opacity: [0.4, 0.5, 0.4],
-              x: [0, -15, 0],
-              borderRadius: [
-                "60% 40% 30% 70% / 50% 30% 70% 50%",
-                "70% 30% 40% 60% / 40% 40% 60% 60%",
-                "60% 40% 30% 70% / 50% 30% 70% 50%",
-              ],
-            }}
-            transition={{
-              duration: 18,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 5,
-            }}
-          />
-
-          <motion.div
-            className="absolute bottom-[30%] left-[20%] w-[35%] h-[30%] rounded-[40%_60%_50%_40%/40%_50%_40%_60%] bg-gradient-to-tr from-primary/15 via-cyan-500/10 to-transparent blur-3xl"
-            animate={{
-              scale: [1, 1.08, 1],
-              opacity: [0.35, 0.45, 0.35],
-              y: [0, 15, 0],
-              borderRadius: [
-                "40% 60% 50% 40% / 40% 50% 40% 60%",
-                "50% 40% 60% 30% / 30% 60% 30% 70%",
-                "40% 60% 50% 40% / 40% 50% 40% 60%",
-              ],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 8,
-            }}
-          />
-
-          {/* Galactic core with realistic spiral features */}
-          <motion.div
-            className="absolute top-1/3 left-1/3 w-[65vw] h-[65vh] opacity-65 z-0 rounded-full"
-            style={{
-              background:
-                "conic-gradient(from 230.29deg at 51.63% 52.16%, rgba(36, 0, 255, 0.15) 0deg, rgba(0, 135, 255, 0.12) 67.5deg, rgba(108, 39, 157, 0.12) 198.75deg, rgba(24, 38, 163, 0.15) 251.25deg, rgba(54, 103, 196, 0.15) 301.88deg, rgba(105, 30, 255, 0.15) 360deg)",
-              backgroundBlendMode: "screen",
-              filter: "blur(40px)",
-              transform: "rotate(-15deg)",
-            }}
-            animate={{
-              rotate: ["-15deg", "-10deg", "-15deg"],
-              scale: [1, 1.03, 1],
-            }}
-            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-          />
-
-          {/* Secondary galaxy with dynamic dust lanes */}
-          <motion.div
-            className="absolute top-[20%] left-[15%] w-[30vw] h-[30vw] opacity-55 mix-blend-screen"
-            style={{
-              background:
-                "conic-gradient(from 180deg at 50% 50%, rgba(56, 189, 248, 0.15) 0deg, rgba(124, 58, 237, 0.18) 55deg, rgba(217, 70, 239, 0.20) 120deg, rgba(236, 72, 153, 0.15) 185deg, rgba(248, 113, 113, 0.18) 250deg, rgba(250, 204, 21, 0.15) 300deg, rgba(132, 204, 22, 0.15) 360deg)",
-              filter: "blur(35px)",
-              transform: "rotate(45deg)",
-              borderRadius: "50% 45% 40% 50%",
-            }}
-            animate={{
-              rotate: ["45deg", "60deg", "45deg"],
-              borderRadius: [
-                "50% 45% 40% 50%",
-                "45% 50% 50% 40%",
-                "50% 45% 40% 50%",
-              ],
-              scale: [1, 1.05, 1],
-            }}
-            transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
-          />
-
-          {/* Stellar atmospheric haze */}
-          <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-primary/5 opacity-60 mix-blend-overlay" />
-
-          {/* Orbital planetary system */}
-          <div className="absolute top-0 right-0 w-full h-full overflow-hidden opacity-90">
-            {/* Multiple orbital rings with reflective gleam */}
+            {/* Multicolor nebula system - photorealistic cosmic clouds */}
             <motion.div
-              className="absolute top-[15%] right-[5%] w-[42vw] h-[42vw] rounded-full border-t-[1px] border-r-[2px] border-b-[1px] border-l-[1px] border-accent/[0.25] z-10"
-              style={{
-                transform: "rotateX(75deg) rotateY(15deg)",
-                boxShadow: "0 0 20px 5px rgba(124, 58, 237, 0.05)",
-                background:
-                  "linear-gradient(135deg, rgba(124, 58, 237, 0.03) 0%, rgba(124, 58, 237, 0) 50%, rgba(124, 58, 237, 0.01) 100%)",
-              }}
+              className="absolute top-[5%] right-[5%] w-[55%] h-[45%] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-gradient-to-br from-primary/20 via-accent/10 to-transparent blur-3xl"
               animate={{
-                rotateX: ["75deg", "65deg", "75deg"],
-                rotateY: ["15deg", "25deg", "15deg"],
+                scale: [1, 1.05, 1],
+                opacity: [0.45, 0.55, 0.45],
+                borderRadius: [
+                  "40% 60% 70% 30% / 40% 50% 60% 50%",
+                  "50% 40% 60% 50% / 60% 40% 50% 40%",
+                  "40% 60% 70% 30% / 40% 50% 60% 50%",
+                ],
               }}
               transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
             />
 
             <motion.div
-              className="absolute top-[15%] right-[5%] w-[60vw] h-[60vw] rounded-full border-t-[1px] border-r-[1px] border-b-[2px] border-l-[1px] border-primary/[0.18] z-10"
-              style={{
-                transform: "rotateX(68deg) rotateY(12deg)",
-                boxShadow: "0 0 25px 2px rgba(37, 99, 235, 0.03)",
-                background:
-                  "linear-gradient(45deg, rgba(37, 99, 235, 0.01) 0%, rgba(37, 99, 235, 0) 50%, rgba(37, 99, 235, 0.03) 100%)",
-              }}
+              className="absolute bottom-[10%] left-[10%] w-[45%] h-[50%] rounded-[50%_40%_30%_60%/40%_60%_70%_50%] bg-gradient-to-tr from-accent/20 via-secondary/15 to-transparent blur-3xl"
               animate={{
-                rotateX: ["68deg", "58deg", "68deg"],
-                rotateY: ["12deg", "22deg", "12deg"],
+                scale: [1, 1.1, 1],
+                opacity: [0.35, 0.45, 0.35],
+                y: [0, -20, 0],
+                borderRadius: [
+                  "50% 40% 30% 60% / 40% 60% 70% 50%",
+                  "40% 50% 40% 50% / 30% 50% 60% 60%",
+                  "50% 40% 30% 60% / 40% 60% 70% 50%",
+                ],
               }}
               transition={{
-                duration: 25,
+                duration: 23,
                 repeat: Infinity,
                 ease: "easeInOut",
-                delay: 2,
+                delay: 3,
               }}
             />
 
+            {/* Rich-color distant nebula systems */}
             <motion.div
-              className="absolute top-[15%] right-[5%] w-[27vw] h-[27vw] rounded-full border-t-[2px] border-r-[1px] border-b-[1px] border-l-[1px] border-secondary/[0.20] z-10"
-              style={{
-                transform: "rotateX(63deg) rotateY(18deg)",
-                boxShadow: "0 0 15px 3px rgba(6, 182, 212, 0.04)",
-                background:
-                  "linear-gradient(225deg, rgba(6, 182, 212, 0.02) 0%, rgba(6, 182, 212, 0) 50%, rgba(6, 182, 212, 0.01) 100%)",
-              }}
+              className="absolute top-[30%] right-[25%] w-[35%] h-[25%] rounded-[60%_40%_30%_70%/50%_30%_70%_50%] bg-gradient-to-br from-secondary/20 via-purple-500/10 to-transparent blur-3xl"
               animate={{
-                rotateX: ["63deg", "53deg", "63deg"],
-                rotateY: ["18deg", "28deg", "18deg"],
+                scale: [1, 1.15, 1],
+                opacity: [0.4, 0.5, 0.4],
+                x: [0, -15, 0],
+                borderRadius: [
+                  "60% 40% 30% 70% / 50% 30% 70% 50%",
+                  "70% 30% 40% 60% / 40% 40% 60% 60%",
+                  "60% 40% 30% 70% / 50% 30% 70% 50%",
+                ],
               }}
               transition={{
                 duration: 18,
                 repeat: Infinity,
                 ease: "easeInOut",
-                delay: 4,
-              }}
-            />
-
-            {/* Elliptical orbit path */}
-            <motion.div
-              className="absolute bottom-[15%] left-[10%] w-[35vw] h-[12vw] rounded-full border-[2px] border-primary/[0.20] z-10"
-              style={{
-                transform: "rotateX(70deg) rotateZ(45deg)",
-                boxShadow: "0 0 20px 2px rgba(37, 99, 235, 0.05)",
-                background:
-                  "linear-gradient(135deg, rgba(37, 99, 235, 0.02) 0%, rgba(37, 99, 235, 0) 50%, rgba(37, 99, 235, 0.04) 100%)",
-              }}
-              animate={{
-                rotateX: ["70deg", "75deg", "70deg"],
-                rotateZ: ["45deg", "40deg", "45deg"],
-              }}
-              transition={{
-                duration: 17,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 2,
-              }}
-            />
-
-            {/* Floating crystalline elements */}
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={`shape-${i}`}
-                className="absolute backdrop-blur-[2px] border border-white/[0.15]"
-                style={{
-                  top: `${Math.random() * 80 + 10}%`,
-                  left: `${Math.random() * 80 + 10}%`,
-                  width: `${Math.random() * 90 + 40}px`,
-                  height: `${Math.random() * 90 + 40}px`,
-                  borderRadius: `${Math.random() * 20 + 5}% ${
-                    Math.random() * 20 + 5
-                  }% ${Math.random() * 20 + 5}% ${Math.random() * 20 + 5}%`,
-                  transform: `rotate(${Math.random() * 360}deg)`,
-                  opacity: 0.8,
-                  background: `linear-gradient(${
-                    Math.random() * 360
-                  }deg, rgba(${Math.round(
-                    Math.random() * 100 + 100
-                  )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
-                    Math.random() * 200 + 55
-                  )}, 0.12) 0%, rgba(${Math.round(
-                    Math.random() * 100 + 100
-                  )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
-                    Math.random() * 200 + 55
-                  )}, 0.08) 100%)`,
-                  boxShadow: `0 0 20px 0 rgba(${Math.round(
-                    Math.random() * 100 + 100
-                  )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
-                    Math.random() * 200 + 55
-                  )}, 0.1)`,
-                }}
-                animate={{
-                  y: [0, -20, 0],
-                  rotate: [
-                    `${Math.random() * 360}deg`,
-                    `${Math.random() * 360 + 180}deg`,
-                  ],
-                  opacity: [0.65, 0.85, 0.65],
-                }}
-                transition={{
-                  duration: 10 + Math.random() * 20,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: Math.random() * 5,
-                }}
-              />
-            ))}
-
-            {/* Holographic glass sphere - Apple-inspired glossy object */}
-            <motion.div
-              className="absolute top-[45%] left-[25%] w-[25vw] h-[25vw]"
-              style={{
-                perspective: "1000px",
-                transformStyle: "preserve-3d",
-              }}
-              animate={{
-                y: [0, -10, 0],
-                x: [0, 5, 0],
-              }}
-              transition={{
-                duration: 15,
-                repeat: Infinity,
-                ease: "easeInOut",
                 delay: 5,
               }}
-            >
+            />
+
+            <motion.div
+              className="absolute bottom-[30%] left-[20%] w-[35%] h-[30%] rounded-[40%_60%_50%_40%/40%_50%_40%_60%] bg-gradient-to-tr from-primary/15 via-cyan-500/10 to-transparent blur-3xl"
+              animate={{
+                scale: [1, 1.08, 1],
+                opacity: [0.35, 0.45, 0.35],
+                y: [0, 15, 0],
+                borderRadius: [
+                  "40% 60% 50% 40% / 40% 50% 40% 60%",
+                  "50% 40% 60% 30% / 30% 60% 30% 70%",
+                  "40% 60% 50% 40% / 40% 50% 40% 60%",
+                ],
+              }}
+              transition={{
+                duration: 25,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 8,
+              }}
+            />
+
+            {/* Galactic core with realistic spiral features */}
+            <motion.div
+              className="absolute top-1/3 left-1/3 w-[65vw] h-[65vh] opacity-65 z-0 rounded-full"
+              style={{
+                background:
+                  "conic-gradient(from 230.29deg at 51.63% 52.16%, rgba(36, 0, 255, 0.15) 0deg, rgba(0, 135, 255, 0.12) 67.5deg, rgba(108, 39, 157, 0.12) 198.75deg, rgba(24, 38, 163, 0.15) 251.25deg, rgba(54, 103, 196, 0.15) 301.88deg, rgba(105, 30, 255, 0.15) 360deg)",
+                backgroundBlendMode: "screen",
+                filter: "blur(40px)",
+                transform: "rotate(-15deg)",
+              }}
+              animate={{
+                rotate: ["-15deg", "-10deg", "-15deg"],
+                scale: [1, 1.03, 1],
+              }}
+              transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+            />
+
+            {/* Secondary galaxy with dynamic dust lanes */}
+            <motion.div
+              className="absolute top-[20%] left-[15%] w-[30vw] h-[30vw] opacity-55 mix-blend-screen"
+              style={{
+                background:
+                  "conic-gradient(from 180deg at 50% 50%, rgba(56, 189, 248, 0.15) 0deg, rgba(124, 58, 237, 0.18) 55deg, rgba(217, 70, 239, 0.20) 120deg, rgba(236, 72, 153, 0.15) 185deg, rgba(248, 113, 113, 0.18) 250deg, rgba(250, 204, 21, 0.15) 300deg, rgba(132, 204, 22, 0.15) 360deg)",
+                filter: "blur(35px)",
+                transform: "rotate(45deg)",
+                borderRadius: "50% 45% 40% 50%",
+              }}
+              animate={{
+                rotate: ["45deg", "60deg", "45deg"],
+                borderRadius: [
+                  "50% 45% 40% 50%",
+                  "45% 50% 50% 40%",
+                  "50% 45% 40% 50%",
+                ],
+                scale: [1, 1.05, 1],
+              }}
+              transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+            />
+
+            {/* Stellar atmospheric haze */}
+            <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-primary/5 opacity-60 mix-blend-overlay" />
+
+            {/* Orbital planetary system */}
+            <div className="absolute top-0 right-0 w-full h-full overflow-hidden opacity-90">
+              {/* Multiple orbital rings with reflective gleam */}
               <motion.div
-                className="w-full h-full rounded-full bg-gradient-to-br from-white/[0.15] to-accent/[0.10] backdrop-blur-[3px] border border-white/[0.18]"
+                className="absolute top-[15%] right-[5%] w-[42vw] h-[42vw] rounded-full border-t-[1px] border-r-[2px] border-b-[1px] border-l-[1px] border-accent/[0.25] z-10"
                 style={{
-                  transform: "rotateX(30deg) rotateY(30deg)",
-                  boxShadow:
-                    "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
+                  transform: "rotateX(75deg) rotateY(15deg)",
+                  boxShadow: "0 0 20px 5px rgba(124, 58, 237, 0.05)",
                   background:
-                    "radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(124, 58, 237, 0.08) 60%, rgba(37, 99, 235, 0.1))",
+                    "linear-gradient(135deg, rgba(124, 58, 237, 0.03) 0%, rgba(124, 58, 237, 0) 50%, rgba(124, 58, 237, 0.01) 100%)",
                 }}
                 animate={{
-                  rotateX: ["30deg", "40deg", "30deg"],
-                  rotateY: ["30deg", "35deg", "30deg"],
-                  boxShadow: [
-                    "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
-                    "inset 0 0 70px rgba(255, 255, 255, 0.14), 0 0 40px rgba(255, 255, 255, 0.12)",
-                    "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
-                  ],
+                  rotateX: ["75deg", "65deg", "75deg"],
+                  rotateY: ["15deg", "25deg", "15deg"],
                 }}
                 transition={{
                   duration: 20,
@@ -738,584 +747,632 @@ export default function StorePage() {
                   ease: "easeInOut",
                 }}
               />
-            </motion.div>
 
-            {/* Moving energy particles along orbital paths */}
-            {[...Array(6)].map((_, i) => {
-              const radius = 20 + i * 7; // Increasing radius for each particle
-              const speed = 15 + Math.random() * 10;
-              const delay = Math.random() * 10;
-              const size = 2 + Math.random() * 3;
+              <motion.div
+                className="absolute top-[15%] right-[5%] w-[60vw] h-[60vw] rounded-full border-t-[1px] border-r-[1px] border-b-[2px] border-l-[1px] border-primary/[0.18] z-10"
+                style={{
+                  transform: "rotateX(68deg) rotateY(12deg)",
+                  boxShadow: "0 0 25px 2px rgba(37, 99, 235, 0.03)",
+                  background:
+                    "linear-gradient(45deg, rgba(37, 99, 235, 0.01) 0%, rgba(37, 99, 235, 0) 50%, rgba(37, 99, 235, 0.03) 100%)",
+                }}
+                animate={{
+                  rotateX: ["68deg", "58deg", "68deg"],
+                  rotateY: ["12deg", "22deg", "12deg"],
+                }}
+                transition={{
+                  duration: 25,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 2,
+                }}
+              />
 
-              return (
+              <motion.div
+                className="absolute top-[15%] right-[5%] w-[27vw] h-[27vw] rounded-full border-t-[2px] border-r-[1px] border-b-[1px] border-l-[1px] border-secondary/[0.20] z-10"
+                style={{
+                  transform: "rotateX(63deg) rotateY(18deg)",
+                  boxShadow: "0 0 15px 3px rgba(6, 182, 212, 0.04)",
+                  background:
+                    "linear-gradient(225deg, rgba(6, 182, 212, 0.02) 0%, rgba(6, 182, 212, 0) 50%, rgba(6, 182, 212, 0.01) 100%)",
+                }}
+                animate={{
+                  rotateX: ["63deg", "53deg", "63deg"],
+                  rotateY: ["18deg", "28deg", "18deg"],
+                }}
+                transition={{
+                  duration: 18,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 4,
+                }}
+              />
+
+              {/* Elliptical orbit path */}
+              <motion.div
+                className="absolute bottom-[15%] left-[10%] w-[35vw] h-[12vw] rounded-full border-[2px] border-primary/[0.20] z-10"
+                style={{
+                  transform: "rotateX(70deg) rotateZ(45deg)",
+                  boxShadow: "0 0 20px 2px rgba(37, 99, 235, 0.05)",
+                  background:
+                    "linear-gradient(135deg, rgba(37, 99, 235, 0.02) 0%, rgba(37, 99, 235, 0) 50%, rgba(37, 99, 235, 0.04) 100%)",
+                }}
+                animate={{
+                  rotateX: ["70deg", "75deg", "70deg"],
+                  rotateZ: ["45deg", "40deg", "45deg"],
+                }}
+                transition={{
+                  duration: 17,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 2,
+                }}
+              />
+
+              {/* Floating crystalline elements */}
+              {[...Array(8)].map((_, i) => (
                 <motion.div
-                  key={`particle-${i}`}
-                  className="absolute rounded-full bg-white shadow-[0_0_10px_3px_rgba(255,255,255,0.5)]"
+                  key={`shape-${i}`}
+                  className="absolute backdrop-blur-[2px] border border-white/[0.15]"
                   style={{
-                    top: "15%",
-                    right: "5%",
-                    width: `${size}px`,
-                    height: `${size}px`,
-                    opacity: 0.7,
-                    zIndex: 12,
-                    transformOrigin: `${radius}vw ${radius}vw`,
-                    filter: "blur(0.5px)",
+                    top: `${Math.random() * 80 + 10}%`,
+                    left: `${Math.random() * 80 + 10}%`,
+                    width: `${Math.random() * 90 + 40}px`,
+                    height: `${Math.random() * 90 + 40}px`,
+                    borderRadius: `${Math.random() * 20 + 5}% ${
+                      Math.random() * 20 + 5
+                    }% ${Math.random() * 20 + 5}% ${Math.random() * 20 + 5}%`,
+                    transform: `rotate(${Math.random() * 360}deg)`,
+                    opacity: 0.8,
+                    background: `linear-gradient(${
+                      Math.random() * 360
+                    }deg, rgba(${Math.round(
+                      Math.random() * 100 + 100
+                    )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
+                      Math.random() * 200 + 55
+                    )}, 0.12) 0%, rgba(${Math.round(
+                      Math.random() * 100 + 100
+                    )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
+                      Math.random() * 200 + 55
+                    )}, 0.08) 100%)`,
+                    boxShadow: `0 0 20px 0 rgba(${Math.round(
+                      Math.random() * 100 + 100
+                    )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
+                      Math.random() * 200 + 55
+                    )}, 0.1)`,
                   }}
                   animate={{
-                    opacity: [0.6, 0.9, 0.6],
+                    y: [0, -20, 0],
+                    rotate: [
+                      `${Math.random() * 360}deg`,
+                      `${Math.random() * 360 + 180}deg`,
+                    ],
+                    opacity: [0.65, 0.85, 0.65],
+                  }}
+                  transition={{
+                    duration: 10 + Math.random() * 20,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: Math.random() * 5,
+                  }}
+                />
+              ))}
+
+              {/* Holographic glass sphere - Apple-inspired glossy object */}
+              <motion.div
+                className="absolute top-[45%] left-[25%] w-[25vw] h-[25vw]"
+                style={{
+                  perspective: "1000px",
+                  transformStyle: "preserve-3d",
+                }}
+                animate={{
+                  y: [0, -10, 0],
+                  x: [0, 5, 0],
+                }}
+                transition={{
+                  duration: 15,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 5,
+                }}
+              >
+                <motion.div
+                  className="w-full h-full rounded-full bg-gradient-to-br from-white/[0.15] to-accent/[0.10] backdrop-blur-[3px] border border-white/[0.18]"
+                  style={{
+                    transform: "rotateX(30deg) rotateY(30deg)",
+                    boxShadow:
+                      "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
+                    background:
+                      "radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(124, 58, 237, 0.08) 60%, rgba(37, 99, 235, 0.1))",
+                  }}
+                  animate={{
+                    rotateX: ["30deg", "40deg", "30deg"],
+                    rotateY: ["30deg", "35deg", "30deg"],
                     boxShadow: [
-                      "0 0 10px 3px rgba(255,255,255,0.4)",
-                      "0 0 15px 5px rgba(255,255,255,0.6)",
-                      "0 0 10px 3px rgba(255,255,255,0.4)",
+                      "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
+                      "inset 0 0 70px rgba(255, 255, 255, 0.14), 0 0 40px rgba(255, 255, 255, 0.12)",
+                      "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
                     ],
                   }}
                   transition={{
-                    opacity: {
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    },
-                    boxShadow: {
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    },
-                  }}
-                >
-                  <motion.div
-                    className="w-full h-full"
-                    animate={{
-                      rotateZ: [0, 360],
-                    }}
-                    transition={{
-                      duration: speed,
-                      repeat: Infinity,
-                      ease: "linear",
-                      delay: delay,
-                    }}
-                    style={{
-                      transformOrigin: `-${radius}vw 0`,
-                      transform: `rotateX(75deg) rotateY(15deg) translateX(${radius}vw)`,
-                    }}
-                  />
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Premium grid overlay with depth */}
-          <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_0.8px,transparent_0.8px)] [mask-image:radial-gradient(ellipse_70%_70%_at_center,#000_40%,transparent_100%)] bg-[length:20px_20px] opacity-15" />
-
-          {/* Subtle lens flare effect */}
-          <div className="absolute top-[20%] right-[30%] w-[200px] h-[200px] rounded-full bg-gradient-radial from-blue-400/20 via-transparent to-transparent opacity-80 mix-blend-screen blur-xl"></div>
-        </div>
-
-        {/* Immersive Hero section with 3D particles and dynamic lighting */}
-        <div className="relative overflow-hidden pt-0 pb-10 z-[10]">
-          {/* Advanced particle system */}
-          <ParticleSystem />
-
-          <div className="container w-full max-w-4xl mx-auto px-4 relative z-10 flex flex-col items-center justify-center text-center min-h-[40vh]">
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.2, 0.65, 0.3, 0.9] }}
-            >
-              <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-6 shadow-glow-sm">
-                <Sparkles className="mr-2 w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-primary/90">
-                  Cutting-edge developer resources
-                </span>
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-                Premium Developer{" "}
-                <span className="text-primary">Resources</span>
-              </h1>
-              <p className="text-xl text-muted-foreground mb-8">
-                High-quality courses, e-books, and tools to elevate your
-                development skills and accelerate your career growth.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <a
-                  href="#products"
-                  className="relative px-6 py-3 bg-primary text-white rounded-lg font-medium group overflow-hidden"
-                >
-                  <span className="relative flex items-center justify-center">
-                    Browse Resources
-                    <ArrowDown className="ml-2 w-4 h-4 inline-block group-hover:translate-y-1 transition-transform" />
-                  </span>
-                </a>
-                {featuredProduct && (
-                  <a
-                    href="#clean-code-book"
-                    className="px-6 py-3 border border-primary/20 bg-background/50 backdrop-blur-sm text-foreground rounded-lg font-medium hover:border-primary/40 transition-colors"
-                  >
-                    <span className="flex items-center justify-center">
-                      <BookOpen className="mr-2 w-4 h-4 text-primary" />
-                      Bestseller
-                    </span>
-                  </a>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Orbital Category Universe section */}
-        <div className="py-12 bg-gradient-to-b from-transparent to-background/90">
-          <div className="container w-full max-w-7xl mx-auto px-4">
-            <SectionTransition>
-              <RevealText
-                text="Browse by Category"
-                className="text-2xl md:text-3xl font-bold text-center mb-3"
-                highlightWords={["Category"]}
-              />
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="text-left text-muted-foreground mb-8"
-              >
-                Spin and choose your lucky category!
-              </motion.p>
-              <div className="flex justify-center">
-                <OrbitalCategoryUniverse
-                  categories={allCategories.map((cat) => ({
-                    name: cat,
-                    slug: cat.toLowerCase().replace(/\s+/g, "-"),
-                  }))}
-                  containerSize={520}
-                  title="Pick Your Category"
-                  description="Explore our premium developer resources by selecting a category that interests you"
-                />
-              </div>
-            </SectionTransition>
-          </div>
-        </div>
-
-        {/* Main product grid - RESTORED */}
-        <div
-          id="products"
-          className="container w-full max-w-7xl mx-auto px-4 py-16"
-        >
-          <SectionTransition>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              {/* Filters Sidebar */}
-              {/* Desktop: Sidebar */}
-              <div className="hidden lg:block lg:col-span-1">
-                <GlassCard className="sticky top-24">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">Filters</h2>
-                    <button
-                      onClick={resetFilters}
-                      className="text-sm text-primary hover:text-primary/70 transition-colors flex items-center"
-                    >
-                      Reset All
-                    </button>
-                  </div>
-                  {/* Categories Section */}
-                  <div className="mb-8">
-                    <h3 className="text-sm uppercase text-muted-foreground tracking-wider mb-4 flex items-center">
-                      <Tag size={14} className="mr-2 text-primary" />
-                      Categories
-                    </h3>
-                    <div className="space-y-3">
-                      {allCategories.map((category, index) => (
-                        <div key={index} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`category-${index}`}
-                            checked={selectedCategories.includes(category)}
-                            onChange={() => handleCategoryChange(category)}
-                            className="mr-2 h-4 w-4 accent-primary cursor-pointer rounded"
-                          />
-                          <label
-                            htmlFor={`category-${index}`}
-                            className={`cursor-pointer transition-colors ${
-                              selectedCategories.includes(category)
-                                ? "text-primary font-medium"
-                                : "text-foreground/90 hover:text-primary"
-                            }`}
-                          >
-                            {category}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Price Range Section */}
-                  <div className="mb-2">
-                    <h3 className="text-sm uppercase text-muted-foreground tracking-wider mb-4">
-                      Price Range
-                    </h3>
-                    <div className="space-y-3">
-                      {[
-                        "Under $10",
-                        "$10 - $25",
-                        "$25 - $50",
-                        "Over $50",
-                        "Free",
-                      ].map((range, index) => (
-                        <div key={index} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id={`price-${index}`}
-                            checked={selectedPriceRanges.includes(range)}
-                            onChange={() => handlePriceRangeChange(range)}
-                            className="mr-2 h-4 w-4 accent-primary cursor-pointer rounded"
-                          />
-                          <label
-                            htmlFor={`price-${index}`}
-                            className={`cursor-pointer transition-colors ${
-                              selectedPriceRanges.includes(range)
-                                ? "text-primary font-medium"
-                                : "text-foreground/90 hover:text-primary"
-                            }`}
-                          >
-                            {range}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </GlassCard>
-              </div>
-
-              {/* Products Grid */}
-              <div className="lg:col-span-3 flex flex-col">
-                <RevealText
-                  text="All Products"
-                  className="text-2xl font-bold mb-4"
-                  delay={0.2}
-                />
-                {/* Sort & Filter Bar for mobile/tablet */}
-                <div className="lg:hidden w-full flex flex-col gap-3 mb-8">
-                  {/* Sort Bar */}
-                  <div className="w-full flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl">
-                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3 7h18M3 12h18M3 17h18"
-                        />
-                      </svg>
-                    </span>
-                    <label
-                      htmlFor="sort-order"
-                      className="text-base font-semibold text-foreground mr-2"
-                    >
-                      Sort by
-                    </label>
-                    <div className="relative flex-1">
-                      <select
-                        id="sort-order"
-                        value={sortOrder}
-                        onChange={(e) => setSortOrder(e.target.value)}
-                        className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
-                      >
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="popular">Most Popular</option>
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {/* Desktop: Sort Bar above grid */}
-                <div className="hidden lg:flex w-full items-center justify-end mb-8">
-                  <div className="flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl min-w-[340px]">
-                    <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3 7h18M3 12h18M3 17h18"
-                        />
-                      </svg>
-                    </span>
-                    <label
-                      htmlFor="sort-order"
-                      className="text-base font-semibold text-foreground mr-2"
-                    >
-                      Sort by
-                    </label>
-                    <div className="relative flex-1">
-                      <select
-                        id="sort-order"
-                        value={sortOrder}
-                        onChange={(e) => setSortOrder(e.target.value)}
-                        className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
-                      >
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="popular">Most Popular</option>
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary">
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {/* Product Grid */}
-                {filteredProducts.length === 0 ? (
-                  <GlassCard>
-                    <div className="py-8 text-center">
-                      <p className="text-lg mb-4">
-                        No products match your filters
-                      </p>
-                      <button
-                        onClick={resetFilters}
-                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                      >
-                        Reset Filters
-                      </button>
-                    </div>
-                  </GlassCard>
-                ) : (
-                  <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-                    variants={staggerVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    {filteredProducts.map((product, idx) => (
-                      <motion.div key={product.id} variants={itemVariants}>
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`View details for ${product.name}`}
-                          className="group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/60 rounded-3xl transition-shadow hover:shadow-2xl hover:scale-[1.025] relative"
-                          onClick={() => handleProductCardClick(idx)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ")
-                              handleProductCardClick(idx);
-                          }}
-                        >
-                          <Product3DCard
-                            id={product.id}
-                            name={product.name}
-                            description={product.description}
-                            price={product.price || 0}
-                            formattedPrice={product.formatted_price}
-                            thumbnailUrl={
-                              product.thumbnail_url ||
-                              "/images/products/placeholder.jpg"
-                            }
-                            categories={product.categories}
-                            rating={product.rating}
-                            reviewCount={product.reviews}
-                            slug={product.slug}
-                            popular={product.popular}
-                            isNew={
-                              product.published &&
-                              product.id.charCodeAt(0) % 5 === 0
-                            }
-                          />
-                          {/* Visual cue for clickability */}
-                          <div className="absolute top-4 right-4 z-20">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium shadow hover:bg-primary/20 transition-all">
-                              <ArrowRight className="w-3 h-3" />
-                              Details
-                            </span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </motion.div>
-                )}
-              </div>
-            </div>
-          </SectionTransition>
-        </div>
-
-        {/* Floating Product Modal */}
-        <AnimatePresence>
-          {productModalOpen && productModalIndex !== null && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-xl"
-              onClick={handleProductModalClose}
-            >
-              <motion.div
-                initial={{ scale: 0.95, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.95, y: 20, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="relative w-full max-w-4xl mx-4 bg-background/95 rounded-3xl shadow-2xl border border-white/10 overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* MacOS-style header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-background/80 backdrop-blur-md">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors"
-                      onClick={handleProductModalClose}
-                    />
-                    <div
-                      className="w-3 h-3 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors"
-                      onClick={handleProductModalClose}
-                    />
-                    <div
-                      className="w-3 h-3 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors"
-                      onClick={handleProductModalClose}
-                    />
-                  </div>
-                  <span className="text-sm font-medium text-foreground/80">
-                    Product Details
-                  </span>
-                  <button
-                    onClick={handleProductModalClose}
-                    className="p-1.5 hover:bg-background rounded-md transition-colors"
-                    aria-label="Close"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                {/* Product Content */}
-                <div className="p-6">
-                  <FloatingGumroadCard
-                    products={filteredProducts}
-                    isOpen={true}
-                    initialProductIndex={productModalIndex}
-                    onClose={handleProductModalClose}
-                  />
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Newsletter/updates subscription - Apple-style redesign */}
-        <div className="bg-gradient-to-b from-transparent to-primary/5 py-24">
-          <div className="container w-full max-w-4xl mx-auto px-4">
-            <SectionTransition>
-              <motion.div
-                className="rounded-3xl overflow-hidden relative"
-                whileHover={{ scale: 1.01 }}
-                transition={{ duration: 0.4 }}
-              >
-                {/* Background with subtle animation */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/5 z-0" />
-                <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:15px_15px] opacity-25 z-0" />
-                <motion.div
-                  className="absolute -top-[50%] -left-[10%] w-[70%] h-[100%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-30 rounded-full blur-3xl z-0"
-                  animate={{
-                    x: [0, 10, 0],
-                    opacity: [0.2, 0.3, 0.2],
-                  }}
-                  transition={{
-                    duration: 8,
+                    duration: 20,
                     repeat: Infinity,
                     ease: "easeInOut",
                   }}
                 />
+              </motion.div>
 
-                <div className="relative z-10 px-8 py-12 md:py-16 flex flex-col items-center">
+              {/* Moving energy particles along orbital paths */}
+              {[...Array(6)].map((_, i) => {
+                const radius = 20 + i * 7; // Increasing radius for each particle
+                const speed = 15 + Math.random() * 10;
+                const delay = Math.random() * 10;
+                const size = 2 + Math.random() * 3;
+
+                return (
                   <motion.div
-                    className="w-16 h-16 flex items-center justify-center bg-primary/10 backdrop-blur-xl rounded-full mb-6"
+                    key={`particle-${i}`}
+                    className="absolute rounded-full bg-white shadow-[0_0_10px_3px_rgba(255,255,255,0.5)]"
+                    style={{
+                      top: "15%",
+                      right: "5%",
+                      width: `${size}px`,
+                      height: `${size}px`,
+                      opacity: 0.7,
+                      zIndex: 12,
+                      transformOrigin: `${radius}vw ${radius}vw`,
+                      filter: "blur(0.5px)",
+                    }}
                     animate={{
-                      scale: [1, 1.05, 1],
+                      opacity: [0.6, 0.9, 0.6],
+                      boxShadow: [
+                        "0 0 10px 3px rgba(255,255,255,0.4)",
+                        "0 0 15px 5px rgba(255,255,255,0.6)",
+                        "0 0 10px 3px rgba(255,255,255,0.4)",
+                      ],
                     }}
                     transition={{
-                      duration: 3,
+                      opacity: {
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      },
+                      boxShadow: {
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      },
+                    }}
+                  >
+                    <motion.div
+                      className="w-full h-full"
+                      animate={{
+                        rotateZ: [0, 360],
+                      }}
+                      transition={{
+                        duration: speed,
+                        repeat: Infinity,
+                        ease: "linear",
+                        delay: delay,
+                      }}
+                      style={{
+                        transformOrigin: `-${radius}vw 0`,
+                        transform: `rotateX(75deg) rotateY(15deg) translateX(${radius}vw)`,
+                      }}
+                    />
+                  </motion.div>
+                );
+              })}
+            </div>
+
+            {/* Premium grid overlay with depth */}
+            <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_0.8px,transparent_0.8px)] [mask-image:radial-gradient(ellipse_70%_70%_at_center,#000_40%,transparent_100%)] bg-[length:20px_20px] opacity-15" />
+
+            {/* Subtle lens flare effect */}
+            <div className="absolute top-[20%] right-[30%] w-[200px] h-[200px] rounded-full bg-gradient-radial from-blue-400/20 via-transparent to-transparent opacity-80 mix-blend-screen blur-xl"></div>
+          </div>
+
+          {/* Immersive Hero section with 3D particles and dynamic lighting */}
+          <div className="relative overflow-hidden pt-0 pb-10 z-[10]">
+            {/* Advanced particle system */}
+            <ParticleSystem />
+
+            <div className="container w-full max-w-4xl mx-auto px-4 relative z-10 flex flex-col items-center justify-center text-center min-h-[40vh]">
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.2, 0.65, 0.3, 0.9] }}
+              >
+                <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-6 shadow-glow-sm">
+                  <Sparkles className="mr-2 w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary/90">
+                    Cutting-edge developer resources
+                  </span>
+                </div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+                  Premium Developer{" "}
+                  <span className="text-primary">Resources</span>
+                </h1>
+                <p className="text-xl text-muted-foreground mb-8">
+                  High-quality courses, e-books, and tools to elevate your
+                  development skills and accelerate your career growth.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <a
+                    href="#products"
+                    className="relative px-6 py-3 bg-primary text-white rounded-lg font-medium group overflow-hidden"
+                  >
+                    <span className="relative flex items-center justify-center">
+                      Browse Resources
+                      <ArrowDown className="ml-2 w-4 h-4 inline-block group-hover:translate-y-1 transition-transform" />
+                    </span>
+                  </a>
+                  {featuredProduct && (
+                    <a
+                      href="#clean-code-book"
+                      className="px-6 py-3 border border-primary/20 bg-background/50 backdrop-blur-sm text-foreground rounded-lg font-medium hover:border-primary/40 transition-colors"
+                    >
+                      <span className="flex items-center justify-center">
+                        <BookOpen className="mr-2 w-4 h-4 text-primary" />
+                        Bestseller
+                      </span>
+                    </a>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Main content sections with proper container width */}
+          <div className="container mx-auto px-4 max-w-7xl">
+            {/* Orbital Category Universe section */}
+            <ScrollSection id="store-categories" className="relative py-20">
+              <SectionTransition>
+                <RevealText
+                  text="Browse by Category"
+                  className="text-2xl md:text-3xl font-bold text-center mb-3"
+                  highlightWords={["Category"]}
+                />
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="text-left text-muted-foreground mb-8"
+                >
+                  Spin and choose your lucky category!
+                </motion.p>
+                <div className="flex justify-center">
+                  <OrbitalCategoryUniverse
+                    categories={allCategories.map((cat) => ({
+                      name: cat,
+                      slug: cat.toLowerCase().replace(/\s+/g, "-"),
+                    }))}
+                    containerSize={520}
+                    title="Pick Your Category"
+                    description="Explore our premium developer resources by selecting a category that interests you"
+                  />
+                </div>
+              </SectionTransition>
+            </ScrollSection>
+
+            {/* Main product grid */}
+            <ScrollSection id="store-products" className="relative py-20">
+              <SectionTransition>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                  {/* Filters Sidebar */}
+                  <div className="hidden lg:block lg:col-span-1">
+                    <GlassCard className="sticky top-24">
+                      <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold">Filters</h2>
+                        <button
+                          onClick={resetFilters}
+                          className="text-sm text-primary hover:text-primary/70 transition-colors flex items-center"
+                        >
+                          Reset All
+                        </button>
+                      </div>
+                      {/* Categories Section */}
+                      <div className="mb-8">
+                        <h3 className="text-sm uppercase text-muted-foreground tracking-wider mb-4 flex items-center">
+                          <Tag size={14} className="mr-2 text-primary" />
+                          Categories
+                        </h3>
+                        <div className="space-y-3">
+                          {allCategories.map((category, index) => (
+                            <div key={index} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`category-${index}`}
+                                checked={selectedCategories.includes(category)}
+                                onChange={() => handleCategoryChange(category)}
+                                className="mr-2 h-4 w-4 accent-primary cursor-pointer rounded"
+                              />
+                              <label
+                                htmlFor={`category-${index}`}
+                                className={`cursor-pointer transition-colors ${
+                                  selectedCategories.includes(category)
+                                    ? "text-primary font-medium"
+                                    : "text-foreground/90 hover:text-primary"
+                                }`}
+                              >
+                                {category}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Price Range Section */}
+                      <div className="mb-2">
+                        <h3 className="text-sm uppercase text-muted-foreground tracking-wider mb-4">
+                          Price Range
+                        </h3>
+                        <div className="space-y-3">
+                          {[
+                            "Under $10",
+                            "$10 - $25",
+                            "$25 - $50",
+                            "Over $50",
+                            "Free",
+                          ].map((range, index) => (
+                            <div key={index} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`price-${index}`}
+                                checked={selectedPriceRanges.includes(range)}
+                                onChange={() => handlePriceRangeChange(range)}
+                                className="mr-2 h-4 w-4 accent-primary cursor-pointer rounded"
+                              />
+                              <label
+                                htmlFor={`price-${index}`}
+                                className={`cursor-pointer transition-colors ${
+                                  selectedPriceRanges.includes(range)
+                                    ? "text-primary font-medium"
+                                    : "text-foreground/90 hover:text-primary"
+                                }`}
+                              >
+                                {range}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </div>
+
+                  {/* Products Grid */}
+                  <div className="lg:col-span-3 flex flex-col">
+                    <RevealText
+                      text="All Products"
+                      className="text-2xl font-bold mb-4"
+                      delay={0.2}
+                    />
+                    {/* Sort & Filter Bar for mobile/tablet */}
+                    <div className="lg:hidden w-full flex flex-col gap-3 mb-8">
+                      {/* Sort Bar */}
+                      <div className="w-full flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl">
+                        <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M3 7h18M3 12h18M3 17h18"
+                            />
+                          </svg>
+                        </span>
+                        <label
+                          htmlFor="sort-order"
+                          className="text-base font-semibold text-foreground mr-2"
+                        >
+                          Sort by
+                        </label>
+                        <div className="relative flex-1">
+                          <select
+                            id="sort-order"
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                            className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
+                          >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="price-asc">
+                              Price: Low to High
+                            </option>
+                            <option value="price-desc">
+                              Price: High to Low
+                            </option>
+                            <option value="popular">Most Popular</option>
+                          </select>
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary">
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Desktop: Sort Bar above grid */}
+                    <div className="hidden lg:flex w-full items-center justify-end mb-8">
+                      <div className="flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl min-w-[340px]">
+                        <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M3 7h18M3 12h18M3 17h18"
+                            />
+                          </svg>
+                        </span>
+                        <label
+                          htmlFor="sort-order"
+                          className="text-base font-semibold text-foreground mr-2"
+                        >
+                          Sort by
+                        </label>
+                        <div className="relative flex-1">
+                          <select
+                            id="sort-order"
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                            className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
+                          >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="price-asc">
+                              Price: Low to High
+                            </option>
+                            <option value="price-desc">
+                              Price: High to Low
+                            </option>
+                            <option value="popular">Most Popular</option>
+                          </select>
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary">
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Product Grid */}
+                    {filteredProducts.length === 0 ? (
+                      <GlassCard>
+                        <div className="py-8 text-center">
+                          <p className="text-lg mb-4">
+                            No products match your filters
+                          </p>
+                          <button
+                            onClick={resetFilters}
+                            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                          >
+                            Reset Filters
+                          </button>
+                        </div>
+                      </GlassCard>
+                    ) : (
+                      <ProductGrid products={filteredProducts} />
+                    )}
+                  </div>
+                </div>
+              </SectionTransition>
+            </ScrollSection>
+
+            {/* Newsletter section */}
+            <ScrollSection id="store-newsletter" className="relative py-20">
+              <SectionTransition>
+                <motion.div
+                  className="rounded-3xl overflow-hidden relative"
+                  whileHover={{ scale: 1.01 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  {/* Background with subtle animation */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/5 z-0" />
+                  <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:15px_15px] opacity-25 z-0" />
+                  <motion.div
+                    className="absolute -top-[50%] -left-[10%] w-[70%] h-[100%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-30 rounded-full blur-3xl z-0"
+                    animate={{
+                      x: [0, 10, 0],
+                      opacity: [0.2, 0.3, 0.2],
+                    }}
+                    transition={{
+                      duration: 8,
                       repeat: Infinity,
                       ease: "easeInOut",
                     }}
-                  >
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </motion.div>
-
-                  <RevealText
-                    text="Stay Ahead with Updates"
-                    className="text-2xl md:text-3xl font-bold text-center mb-3"
-                    highlightWords={["Ahead"]}
                   />
 
-                  <motion.p
-                    className="text-foreground/80 text-center text-lg mb-8 max-w-xl"
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    viewport={{ once: true }}
-                  >
-                    Subscribe to receive updates about new resources,
-                    limited-time offers, and exclusive content tailored for
-                    developers like you.
-                  </motion.p>
-
-                  <div className="w-full max-w-md mx-auto relative">
-                    <input
-                      type="email"
-                      placeholder="Your email address"
-                      className="w-full px-6 py-4 rounded-xl border border-primary/20 bg-background/70 backdrop-blur-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all text-foreground"
-                    />
-                    <motion.button
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 px-5 py-2.5 bg-primary text-white rounded-lg font-medium"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.97 }}
+                  <div className="relative z-10 px-8 py-12 md:py-16 flex flex-col items-center">
+                    <motion.div
+                      className="w-16 h-16 flex items-center justify-center bg-primary/10 backdrop-blur-xl rounded-full mb-6"
+                      animate={{
+                        scale: [1, 1.05, 1],
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
                     >
-                      Subscribe
-                    </motion.button>
+                      <Sparkles className="h-8 w-8 text-primary" />
+                    </motion.div>
+
+                    <RevealText
+                      text="Stay Ahead with Updates"
+                      className="text-2xl md:text-3xl font-bold text-center mb-3"
+                      highlightWords={["Ahead"]}
+                    />
+
+                    <motion.p
+                      className="text-foreground/80 text-center text-lg mb-8 max-w-xl"
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                      viewport={{ once: true }}
+                    >
+                      Subscribe to receive updates about new resources,
+                      limited-time offers, and exclusive content tailored for
+                      developers like you.
+                    </motion.p>
+
+                    <div className="w-full max-w-md mx-auto relative">
+                      <input
+                        type="email"
+                        placeholder="Your email address"
+                        className="w-full px-6 py-4 rounded-xl border border-primary/20 bg-background/70 backdrop-blur-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all text-foreground"
+                      />
+                      <motion.button
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-5 py-2.5 bg-primary text-white rounded-lg font-medium"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        Subscribe
+                      </motion.button>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground mt-4">
+                      We respect your privacy. Unsubscribe at any time.
+                    </p>
                   </div>
-
-                  <p className="text-xs text-muted-foreground mt-4">
-                    We respect your privacy. Unsubscribe at any time.
-                  </p>
-                </div>
-              </motion.div>
-            </SectionTransition>
+                </motion.div>
+              </SectionTransition>
+            </ScrollSection>
           </div>
-        </div>
-      </main>
+        </main>
 
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </ScrollContainer>
   );
 }
 

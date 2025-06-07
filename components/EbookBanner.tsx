@@ -1126,7 +1126,7 @@ const EbookBanner = () => {
   if (!hasMounted) {
     return (
       <div className="w-full px-4 py-10 flex justify-center items-center sticky top-16 z-20">
-        <div className="w-full max-w-6xl rounded-2xl overflow-hidden shadow-lg border bg-black/5 dark:bg-[#1c1c1e]/90 dark:border-[#3a3a3c] p-6">
+        <div className="w-full max-w-6xl rounded-2xl overflow-hidden border border-black/5 dark:border-white/10 p-6">
           {/* Pre-mounted placeholder */}
           <div className="h-64 md:h-80 flex items-center justify-center">
             <div className="animate-pulse w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700" />
@@ -1457,7 +1457,7 @@ const EbookBanner = () => {
   }
 
   return (
-    <div className="overflow-x-hidden">
+    <div className="relative z-[100]">
       {/* Main Banner - Reduced top margin */}
       <motion.div
         ref={bannerRef}
