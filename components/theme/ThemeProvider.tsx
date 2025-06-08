@@ -33,6 +33,7 @@ export function ThemeProvider({
       enableSystem={enableSystem}
       disableTransitionOnChange={disableTransitionOnChange}
       enableColorScheme
+      storageKey="theme"
     >
       {children}
     </NextThemesProvider>

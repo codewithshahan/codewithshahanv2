@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Star, ArrowUpRight } from "lucide-react";
+import ProductDescription from "@/components/ProductDescription";
 
 interface Product3DCardProps {
   id: string;
@@ -159,10 +160,12 @@ const Product3DCard: React.FC<Product3DCardProps> = ({
             </h3>
           </div>
           {description && (
-            <p className="text-muted-foreground text-base mb-4 line-clamp-2">
-              {description.replace(/<[^>]*>?/gm, "").substring(0, 120)}
-              ...
-            </p>
+            <div className="text-muted-foreground text-base mb-4 line-clamp-2">
+              <ProductDescription
+                content={description}
+                className="[&_p]:!m-0 [&_p]:!text-sm [&_p]:!text-muted-foreground"
+              />
+            </div>
           )}
           {/* Categories */}
           {categories && categories.length > 0 && (

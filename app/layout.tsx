@@ -88,46 +88,44 @@ export default function RootLayout({
         />
         <Script src="/js/clearMockCache.js" strategy="beforeInteractive" />
       </head>
-      <body className="antialiased macos-scrollbar font-sans bg-background text-foreground">
-        <ScrollProvider>
-          <Providers>
-            <ClientLayout>{children}</ClientLayout>
-            {/* Schema.org structured data */}
-            <Script id="navigation-schema" type="application/ld+json">
-              {JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                name: "CodewithShahan",
-                url: "https://codewithshahan.com",
-                potentialAction: {
-                  "@type": "SearchAction",
-                  target:
-                    "https://codewithshahan.com/search?q={search_term_string}",
-                  "query-input": "required name=search_term_string",
-                },
-              })}
-            </Script>
-            <Script id="organization-schema" type="application/ld+json">
-              {JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "Organization",
-                name: "CodewithShahan",
-                url: "https://codewithshahan.com",
-                logo: "https://codewithshahan.com/icons/logo/icon.svg",
-                sameAs: [
-                  "https://twitter.com/codewithshahan",
-                  "https://github.com/codewithshahan",
-                  "https://linkedin.com/company/codewithshahan",
-                ],
-                contactPoint: {
-                  "@type": "ContactPoint",
-                  email: "contact@codewithshahan.com",
-                  contactType: "customer service",
-                },
-              })}
-            </Script>
-          </Providers>
-        </ScrollProvider>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <Providers>
+          <ClientLayout>{children}</ClientLayout>
+          {/* Schema.org structured data */}
+          <Script id="navigation-schema" type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "CodewithShahan",
+              url: "https://codewithshahan.com",
+              potentialAction: {
+                "@type": "SearchAction",
+                target:
+                  "https://codewithshahan.com/search?q={search_term_string}",
+                "query-input": "required name=search_term_string",
+              },
+            })}
+          </Script>
+          <Script id="organization-schema" type="application/ld+json">
+            {JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "CodewithShahan",
+              url: "https://codewithshahan.com",
+              logo: "https://codewithshahan.com/icons/logo/icon.svg",
+              sameAs: [
+                "https://twitter.com/codewithshahan",
+                "https://github.com/codewithshahan",
+                "https://linkedin.com/company/codewithshahan",
+              ],
+              contactPoint: {
+                "@type": "ContactPoint",
+                email: "contact@codewithshahan.com",
+                contactType: "customer service",
+              },
+            })}
+          </Script>
+        </Providers>
       </body>
     </html>
   );

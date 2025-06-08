@@ -7,7 +7,6 @@ import { Providers } from "@/components/providers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { MacOSDock } from "@/components/categories/MacOSDock";
-import { useTheme } from "next-themes";
 import { Category, getUniqueCategories } from "@/lib/categories";
 import { Loader2 } from "lucide-react";
 import { fetchArticles } from "@/services/api";
@@ -15,15 +14,9 @@ import { fetchProducts } from "@/services/gumroad";
 
 export default function CategoryIndexPage() {
   const router = useRouter();
-  const { setTheme } = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Force dark mode
-  useEffect(() => {
-    setTheme("dark");
-  }, [setTheme]);
 
   // Fetch categories
   useEffect(() => {

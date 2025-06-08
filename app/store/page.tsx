@@ -36,9 +36,10 @@ import {
 import { Button } from "@/components/ui/button";
 import Balancer from "react-wrap-balancer";
 import dynamic from "next/dynamic";
-import { useTheme } from "next-themes";
 import { ScrollContainer, ScrollSection } from "@/components/ui/scroll";
 import { useVirtualizer, VirtualItem } from "@tanstack/react-virtual";
+import ReactMarkdown from "react-markdown";
+import { createPortal } from "react-dom";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -52,6 +53,8 @@ import SectionTransition, {
   RevealText,
 } from "@/components/SectionTransition";
 import FloatingGumroadCard from "@/components/category/FloatingGumroadCard";
+import MacOSRichTextRenderer from "@/components/markdown/MacOSRichTextRenderer";
+import ProductDescription from "@/components/ProductDescription";
 
 // Optimize particle system rendering
 const ParticleSystem = dynamic(() => import("@/components/ParticleSystem"), {
@@ -144,7 +147,7 @@ const GlowingTitle: React.FC<GlowingTitleProps> = ({ children }) => {
   );
 };
 
-// Optimize background elements with useCallback
+// Update the background elements with refined colors
 const BackgroundElements = React.memo(() => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -163,24 +166,24 @@ const BackgroundElements = React.memo(() => {
       className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[0]"
       onMouseMove={handleMouseMove}
     >
-      {/* Simplified background with fewer elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,_var(--tw-gradient-stops))] from-background/70 via-background/65 to-[#050b1f]/80" />
+      {/* Refined background with subtle gradient */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,_var(--tw-gradient-stops))] from-background/95 via-background/90 to-background/85" />
 
-      {/* Optimized star field with fewer stars */}
+      {/* Optimized star field with refined colors */}
       <div className="absolute inset-0">
         {[...Array(100)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute rounded-full bg-white"
+            className="absolute rounded-full bg-primary/40 dark:bg-white"
             style={{
               top: `${Math.random() * 100}%`,
               left: `${Math.random() * 100}%`,
               width: `${Math.random() > 0.95 ? 2 : 1}px`,
               height: `${Math.random() > 0.95 ? 2 : 1}px`,
-              opacity: Math.random() * 0.8 + 0.2,
+              opacity: Math.random() * 0.6 + 0.2,
             }}
             animate={{
-              opacity: [0.3, 0.6, 0.3],
+              opacity: [0.2, 0.4, 0.2],
             }}
             transition={{
               duration: 2 + Math.random() * 3,
@@ -191,12 +194,12 @@ const BackgroundElements = React.memo(() => {
         ))}
       </div>
 
-      {/* Simplified nebula effects */}
+      {/* Refined nebula effects */}
       <motion.div
-        className="absolute top-[5%] right-[5%] w-[55%] h-[45%] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-gradient-to-br from-primary/20 via-accent/10 to-transparent blur-3xl"
+        className="absolute top-[5%] right-[5%] w-[55%] h-[45%] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-gradient-to-br from-primary/10 via-accent/5 to-transparent blur-3xl"
         animate={{
           scale: [1, 1.05, 1],
-          opacity: [0.45, 0.55, 0.45],
+          opacity: [0.3, 0.4, 0.3],
         }}
         transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -206,19 +209,385 @@ const BackgroundElements = React.memo(() => {
 
 BackgroundElements.displayName = "BackgroundElements";
 
-// Optimize product grid with virtualization
+// Add new interfaces for enhanced product display
+interface ProductStats {
+  sales: number;
+  rating: number;
+  reviews: number;
+  lastUpdated: string;
+}
+
+// Update GumroadProduct interface to extend the imported one
+interface ExtendedGumroadProduct extends GumroadProduct {
+  reviews_count?: number;
+  last_updated?: string;
+  categories?: string[];
+}
+
+// Update ProductCardProps interface
+interface ProductCardProps
+  extends Omit<ExtendedGumroadProduct, "formatted_price"> {
+  stats: ProductStats;
+  formatted_price?: string;
+  isLatest?: boolean;
+}
+
+// Enhanced Product Card Component with proper type checking
+const ProductCard: React.FC<ProductCardProps> = ({
+  name,
+  description,
+  price,
+  formatted_price,
+  currency = "USD",
+  thumbnail_url,
+  stats,
+  tags,
+  sales_count = 0,
+  rating = 0,
+  reviews_count = 0,
+  last_updated = new Date().toISOString(),
+  categories = [],
+  isLatest = false,
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [showQuickView, setShowQuickView] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
+  const infoButtonRef = useRef<HTMLDivElement>(null);
+  const [infoPosition, setInfoPosition] = useState<{
+    top: number | string;
+    left: number | string;
+  }>({ top: 0, left: 0 });
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null
+  );
+
+  // Initialize portal container
+  useEffect(() => {
+    const container = document.getElementById("store-portal-container");
+    if (!container) {
+      const newContainer = document.createElement("div");
+      newContainer.id = "store-portal-container";
+      newContainer.style.position = "fixed";
+      newContainer.style.top = "0";
+      newContainer.style.left = "0";
+      newContainer.style.width = "100%";
+      newContainer.style.height = "100%";
+      newContainer.style.pointerEvents = "none";
+      newContainer.style.zIndex = "50";
+      document.body.appendChild(newContainer);
+      setPortalContainer(newContainer);
+    } else {
+      setPortalContainer(container);
+    }
+
+    return () => {
+      if (container && !container.hasChildNodes()) {
+        container.remove();
+      }
+    };
+  }, []);
+
+  // Update info position when button is clicked
+  const updateInfoPosition = useCallback(() => {
+    if (infoButtonRef.current) {
+      const rect = infoButtonRef.current.getBoundingClientRect();
+      const cardHeight = window.innerWidth < 768 ? 500 : 380; // Adjust height for mobile
+      const isMobile = window.innerWidth < 768;
+
+      setInfoPosition({
+        top: isMobile ? 20 : rect.top - cardHeight - 16, // Position at top for mobile
+        left: isMobile ? "50%" : rect.left,
+      });
+    }
+  }, []);
+
+  // Format price with currency
+  const displayPrice = formatted_price || `$${price.toFixed(2)}`;
+
+  return (
+    <>
+      <motion.div
+        className="group relative bg-background/95 backdrop-blur-xl rounded-2xl border border-primary/10 overflow-hidden flex flex-col h-[420px] w-full z-10"
+        initial={false}
+        animate={{
+          scale: isHovered ? 1.02 : 1,
+          boxShadow: isHovered
+            ? "0 20px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.1)"
+            : "0 10px 30px rgba(0,0,0,0.05), 0 0 0 1px rgba(255,255,255,0.05)",
+        }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        onHoverStart={() => setIsHovered(true)}
+        onHoverEnd={() => setIsHovered(false)}
+      >
+        {/* Premium Image Container */}
+        <div className="relative h-[180px] overflow-hidden rounded-t-2xl bg-gradient-to-br from-primary/5 to-background">
+          <Image
+            src={thumbnail_url || "/images/products/placeholder.jpg"}
+            alt={name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+          {/* Premium Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {/* Quick Stats Overlay */}
+          <div className="absolute top-3 right-3 flex gap-2">
+            {sales_count > 100 && (
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 backdrop-blur-sm text-xs font-medium text-primary">
+                Bestseller
+              </span>
+            )}
+            {isLatest && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="px-2 py-0.5 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm text-xs font-medium text-green-500 border border-green-500/20"
+              >
+                New
+              </motion.span>
+            )}
+          </div>
+        </div>
+
+        {/* Content Container */}
+        <div className="flex-1 flex flex-col p-4">
+          {/* Title */}
+          <h3 className="text-base font-semibold text-foreground mb-3 line-clamp-2">
+            {name}
+          </h3>
+
+          {/* Price and Purchase Type */}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg font-bold text-primary">
+              {displayPrice}
+            </span>
+            {price > 0 && (
+              <span className="text-[10px] text-muted-foreground">
+                One-time purchase
+              </span>
+            )}
+          </div>
+
+          {/* Stats Bar */}
+          <div className="flex items-center gap-3 mb-3 text-xs">
+            <div className="flex items-center gap-1">
+              <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+              <span className="font-medium">{rating.toFixed(1)}</span>
+              <span className="text-muted-foreground">({reviews_count})</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-primary" />
+              <span className="text-muted-foreground">{sales_count} sales</span>
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {tags?.slice(0, 2).map((tag, index) => (
+              <span
+                key={index}
+                className="px-1.5 py-0.5 rounded-full bg-primary/5 text-[10px] font-medium text-primary"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 mt-auto">
+            <motion.a
+              href="https://gumroad.com/l/cleancode"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              View Details
+            </motion.a>
+            <div className="relative" ref={infoButtonRef}>
+              <motion.button
+                className="p-1.5 rounded-lg border border-primary/20 hover:border-primary/40 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  updateInfoPosition();
+                  setShowDescription(true);
+                }}
+                onMouseEnter={() => {
+                  updateInfoPosition();
+                  setShowDescription(true);
+                }}
+                onMouseLeave={() => setShowDescription(false)}
+              >
+                <Info className="w-4 h-4 text-primary" />
+              </motion.button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Enhanced Floating Description Card - Using Portal */}
+      {portalContainer &&
+        createPortal(
+          <AnimatePresence>
+            {showDescription && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                className="fixed w-[90vw] sm:w-[480px] md:w-[380px] bg-background/95 backdrop-blur-xl rounded-xl border border-primary/10 shadow-2xl overflow-hidden pointer-events-auto"
+                style={{
+                  top:
+                    typeof infoPosition.top === "number"
+                      ? `${infoPosition.top}px`
+                      : infoPosition.top,
+                  left:
+                    typeof infoPosition.left === "number"
+                      ? `${infoPosition.left}px`
+                      : infoPosition.left,
+                  transform:
+                    typeof infoPosition.left === "number"
+                      ? "translateX(-50%)"
+                      : "translate(-50%, 0)",
+                }}
+                onMouseEnter={() => setShowDescription(true)}
+                onMouseLeave={() => setShowDescription(false)}
+              >
+                {/* Semi-transparent backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[-1] pointer-events-auto"
+                  onClick={() => setShowDescription(false)}
+                />
+
+                {/* Header with Gradient */}
+                <div className="relative h-24 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent">
+                  <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/95 to-transparent" />
+
+                  {/* Product Image */}
+                  <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-xl overflow-hidden border-2 border-background/95 shadow-lg">
+                    <Image
+                      src={thumbnail_url || "/images/products/placeholder.jpg"}
+                      alt={name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 pt-8">
+                  {/* Title and Price */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h4 className="text-base font-semibold mb-1">{name}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-primary">
+                          {displayPrice}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {price > 0 ? "One-time purchase" : "Free"}
+                        </span>
+                      </div>
+                    </div>
+                    {isLatest && (
+                      <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-xs font-medium text-green-500 border border-green-500/20">
+                        New
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Description using ProductDescription */}
+                  <div className="relative mb-4">
+                    <div className="absolute -left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/20 to-transparent" />
+                    <div className="text-sm text-muted-foreground max-h-[120px] overflow-y-auto custom-scrollbar leading-relaxed pl-2">
+                      <ProductDescription
+                        content={description || ""}
+                        className="[&_p]:!m-0 [&_p]:!text-sm [&_p]:!text-muted-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="mt-4 grid grid-cols-3 gap-2 p-3 rounded-lg bg-primary/5">
+                    <div className="text-center">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        Rating
+                      </div>
+                      <div className="flex items-center justify-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                        <span className="text-sm font-medium">
+                          {rating.toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        Reviews
+                      </div>
+                      <div className="text-sm font-medium">{reviews_count}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        Sales
+                      </div>
+                      <div className="text-sm font-medium">{sales_count}</div>
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  {tags && tags.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-0.5 rounded-full bg-primary/5 text-xs font-medium text-primary"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action Button */}
+                  <button className="mt-4 w-full px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
+                    View Full Details
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          portalContainer
+        )}
+    </>
+  );
+};
+
+// Update the ProductGrid component
 const ProductGrid = React.memo(
-  ({ products }: { products: GumroadProduct[] }) => {
+  ({ products }: { products: ExtendedGumroadProduct[] }) => {
     const parentRef = useRef<HTMLDivElement>(null);
     const rowVirtualizer = useVirtualizer({
       count: Math.ceil(products.length / 3),
       getScrollElement: () => parentRef.current,
-      estimateSize: () => 400, // Approximate height of each row
+      estimateSize: () => 440,
       overscan: 2,
     });
 
+    // Find the latest product
+    const latestProduct = products.reduce((latest, current) => {
+      const latestDate = new Date(latest.last_updated || 0);
+      const currentDate = new Date(current.last_updated || 0);
+      return currentDate > latestDate ? current : latest;
+    }, products[0]);
+
     return (
-      <div ref={parentRef} className="h-[800px] overflow-auto">
+      <div ref={parentRef} className="h-[800px] overflow-auto custom-scrollbar">
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
@@ -243,22 +612,19 @@ const ProductGrid = React.memo(
                 }}
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
               >
-                {rowProducts.map((product, idx) => (
-                  <motion.div
+                {rowProducts.map((product) => (
+                  <ProductCard
                     key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: idx * 0.1 }}
-                  >
-                    <Product3DCard
-                      {...product}
-                      thumbnailUrl={
-                        product.thumbnail_url ||
-                        "/images/products/placeholder.jpg"
-                      }
-                    />
-                  </motion.div>
+                    {...product}
+                    isLatest={product.id === latestProduct?.id}
+                    stats={{
+                      sales: product.sales_count || 0,
+                      rating: product.rating || 0,
+                      reviews: product.reviews_count || 0,
+                      lastUpdated:
+                        product.last_updated || new Date().toISOString(),
+                    }}
+                  />
                 ))}
               </div>
             );
@@ -269,23 +635,17 @@ const ProductGrid = React.memo(
   }
 );
 
-ProductGrid.displayName = "ProductGrid";
-
 export default function StorePage() {
-  // Theme hook for controlling dark mode
-  const { setTheme } = useTheme();
-
   // State hooks - always declare these first and in the same order
-  const [products, setProducts] = useState<GumroadProduct[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<GumroadProduct[]>(
-    []
-  );
+  const [products, setProducts] = useState<ExtendedGumroadProduct[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<
+    ExtendedGumroadProduct[]
+  >([]);
   const [allCategories, setAllCategories] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [featuredProduct, setFeaturedProduct] = useState<GumroadProduct | null>(
-    null
-  );
+  const [featuredProduct, setFeaturedProduct] =
+    useState<ExtendedGumroadProduct | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<string>("newest");
@@ -343,8 +703,8 @@ export default function StorePage() {
       try {
         setLoading(true);
         const productData = await fetchProducts();
-        setProducts(productData);
-        setFilteredProducts(productData);
+        setProducts(productData as ExtendedGumroadProduct[]);
+        setFilteredProducts(productData as ExtendedGumroadProduct[]);
 
         // Find featured clean code product
         const cleanCodeProduct = productData.find(
@@ -439,7 +799,7 @@ export default function StorePage() {
   };
 
   // Sort products based on selected order
-  const sortProducts = (products: GumroadProduct[], order: string) => {
+  const sortProducts = (products: ExtendedGumroadProduct[], order: string) => {
     const sorted = [...products];
 
     switch (order) {
@@ -462,12 +822,6 @@ export default function StorePage() {
         return sorted;
     }
   };
-
-  // Force dark mode on component mount
-  useEffect(() => {
-    // Set theme to dark when the store page loads
-    setTheme("dark");
-  }, [setTheme]);
 
   // Handler to open product modal
   const handleProductCardClick = (index: number) => {
@@ -523,23 +877,32 @@ export default function StorePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
-        <main className="flex-grow flex items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-small-white/[0.015] pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-60" />
-
+      <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
+        <motion.div
+          className="relative w-12 h-12"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           <motion.div
-            className="w-12 h-12 border-2 border-primary/30 border-t-primary rounded-full"
+            className="absolute inset-0 border-2 border-primary/30 border-t-primary rounded-full"
             animate={{ rotate: 360 }}
             transition={{
-              duration: 1,
+              duration: 0.8,
               repeat: Infinity,
               ease: "linear",
             }}
           />
-        </main>
-        <Footer />
+          <motion.div
+            className="absolute inset-0 border-2 border-primary/20 border-t-primary/40 rounded-full"
+            animate={{ rotate: -360 }}
+            transition={{
+              duration: 1.2,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          />
+        </motion.div>
       </div>
     );
   }
@@ -559,7 +922,7 @@ export default function StorePage() {
           <BackgroundElements />
 
           {/* Ultra-Premium Vector Universe Background */}
-          <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[0]">
+          <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[1]">
             {/* Deep space backdrop with advanced gradient */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,_var(--tw-gradient-stops))] from-background/70 via-background/65 to-[#050b1f]/80" />
 
@@ -726,245 +1089,6 @@ export default function StorePage() {
             {/* Stellar atmospheric haze */}
             <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-primary/5 opacity-60 mix-blend-overlay" />
 
-            {/* Orbital planetary system */}
-            <div className="absolute top-0 right-0 w-full h-full overflow-hidden opacity-90">
-              {/* Multiple orbital rings with reflective gleam */}
-              <motion.div
-                className="absolute top-[15%] right-[5%] w-[42vw] h-[42vw] rounded-full border-t-[1px] border-r-[2px] border-b-[1px] border-l-[1px] border-accent/[0.25] z-10"
-                style={{
-                  transform: "rotateX(75deg) rotateY(15deg)",
-                  boxShadow: "0 0 20px 5px rgba(124, 58, 237, 0.05)",
-                  background:
-                    "linear-gradient(135deg, rgba(124, 58, 237, 0.03) 0%, rgba(124, 58, 237, 0) 50%, rgba(124, 58, 237, 0.01) 100%)",
-                }}
-                animate={{
-                  rotateX: ["75deg", "65deg", "75deg"],
-                  rotateY: ["15deg", "25deg", "15deg"],
-                }}
-                transition={{
-                  duration: 20,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-              />
-
-              <motion.div
-                className="absolute top-[15%] right-[5%] w-[60vw] h-[60vw] rounded-full border-t-[1px] border-r-[1px] border-b-[2px] border-l-[1px] border-primary/[0.18] z-10"
-                style={{
-                  transform: "rotateX(68deg) rotateY(12deg)",
-                  boxShadow: "0 0 25px 2px rgba(37, 99, 235, 0.03)",
-                  background:
-                    "linear-gradient(45deg, rgba(37, 99, 235, 0.01) 0%, rgba(37, 99, 235, 0) 50%, rgba(37, 99, 235, 0.03) 100%)",
-                }}
-                animate={{
-                  rotateX: ["68deg", "58deg", "68deg"],
-                  rotateY: ["12deg", "22deg", "12deg"],
-                }}
-                transition={{
-                  duration: 25,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 2,
-                }}
-              />
-
-              <motion.div
-                className="absolute top-[15%] right-[5%] w-[27vw] h-[27vw] rounded-full border-t-[2px] border-r-[1px] border-b-[1px] border-l-[1px] border-secondary/[0.20] z-10"
-                style={{
-                  transform: "rotateX(63deg) rotateY(18deg)",
-                  boxShadow: "0 0 15px 3px rgba(6, 182, 212, 0.04)",
-                  background:
-                    "linear-gradient(225deg, rgba(6, 182, 212, 0.02) 0%, rgba(6, 182, 212, 0) 50%, rgba(6, 182, 212, 0.01) 100%)",
-                }}
-                animate={{
-                  rotateX: ["63deg", "53deg", "63deg"],
-                  rotateY: ["18deg", "28deg", "18deg"],
-                }}
-                transition={{
-                  duration: 18,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 4,
-                }}
-              />
-
-              {/* Elliptical orbit path */}
-              <motion.div
-                className="absolute bottom-[15%] left-[10%] w-[35vw] h-[12vw] rounded-full border-[2px] border-primary/[0.20] z-10"
-                style={{
-                  transform: "rotateX(70deg) rotateZ(45deg)",
-                  boxShadow: "0 0 20px 2px rgba(37, 99, 235, 0.05)",
-                  background:
-                    "linear-gradient(135deg, rgba(37, 99, 235, 0.02) 0%, rgba(37, 99, 235, 0) 50%, rgba(37, 99, 235, 0.04) 100%)",
-                }}
-                animate={{
-                  rotateX: ["70deg", "75deg", "70deg"],
-                  rotateZ: ["45deg", "40deg", "45deg"],
-                }}
-                transition={{
-                  duration: 17,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 2,
-                }}
-              />
-
-              {/* Floating crystalline elements */}
-              {[...Array(8)].map((_, i) => (
-                <motion.div
-                  key={`shape-${i}`}
-                  className="absolute backdrop-blur-[2px] border border-white/[0.15]"
-                  style={{
-                    top: `${Math.random() * 80 + 10}%`,
-                    left: `${Math.random() * 80 + 10}%`,
-                    width: `${Math.random() * 90 + 40}px`,
-                    height: `${Math.random() * 90 + 40}px`,
-                    borderRadius: `${Math.random() * 20 + 5}% ${
-                      Math.random() * 20 + 5
-                    }% ${Math.random() * 20 + 5}% ${Math.random() * 20 + 5}%`,
-                    transform: `rotate(${Math.random() * 360}deg)`,
-                    opacity: 0.8,
-                    background: `linear-gradient(${
-                      Math.random() * 360
-                    }deg, rgba(${Math.round(
-                      Math.random() * 100 + 100
-                    )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
-                      Math.random() * 200 + 55
-                    )}, 0.12) 0%, rgba(${Math.round(
-                      Math.random() * 100 + 100
-                    )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
-                      Math.random() * 200 + 55
-                    )}, 0.08) 100%)`,
-                    boxShadow: `0 0 20px 0 rgba(${Math.round(
-                      Math.random() * 100 + 100
-                    )}, ${Math.round(Math.random() * 100 + 100)}, ${Math.round(
-                      Math.random() * 200 + 55
-                    )}, 0.1)`,
-                  }}
-                  animate={{
-                    y: [0, -20, 0],
-                    rotate: [
-                      `${Math.random() * 360}deg`,
-                      `${Math.random() * 360 + 180}deg`,
-                    ],
-                    opacity: [0.65, 0.85, 0.65],
-                  }}
-                  transition={{
-                    duration: 10 + Math.random() * 20,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: Math.random() * 5,
-                  }}
-                />
-              ))}
-
-              {/* Holographic glass sphere - Apple-inspired glossy object */}
-              <motion.div
-                className="absolute top-[45%] left-[25%] w-[25vw] h-[25vw]"
-                style={{
-                  perspective: "1000px",
-                  transformStyle: "preserve-3d",
-                }}
-                animate={{
-                  y: [0, -10, 0],
-                  x: [0, 5, 0],
-                }}
-                transition={{
-                  duration: 15,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 5,
-                }}
-              >
-                <motion.div
-                  className="w-full h-full rounded-full bg-gradient-to-br from-white/[0.15] to-accent/[0.10] backdrop-blur-[3px] border border-white/[0.18]"
-                  style={{
-                    transform: "rotateX(30deg) rotateY(30deg)",
-                    boxShadow:
-                      "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
-                    background:
-                      "radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(124, 58, 237, 0.08) 60%, rgba(37, 99, 235, 0.1))",
-                  }}
-                  animate={{
-                    rotateX: ["30deg", "40deg", "30deg"],
-                    rotateY: ["30deg", "35deg", "30deg"],
-                    boxShadow: [
-                      "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
-                      "inset 0 0 70px rgba(255, 255, 255, 0.14), 0 0 40px rgba(255, 255, 255, 0.12)",
-                      "inset 0 0 60px rgba(255, 255, 255, 0.12), 0 0 30px rgba(255, 255, 255, 0.1)",
-                    ],
-                  }}
-                  transition={{
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              </motion.div>
-
-              {/* Moving energy particles along orbital paths */}
-              {[...Array(6)].map((_, i) => {
-                const radius = 20 + i * 7; // Increasing radius for each particle
-                const speed = 15 + Math.random() * 10;
-                const delay = Math.random() * 10;
-                const size = 2 + Math.random() * 3;
-
-                return (
-                  <motion.div
-                    key={`particle-${i}`}
-                    className="absolute rounded-full bg-white shadow-[0_0_10px_3px_rgba(255,255,255,0.5)]"
-                    style={{
-                      top: "15%",
-                      right: "5%",
-                      width: `${size}px`,
-                      height: `${size}px`,
-                      opacity: 0.7,
-                      zIndex: 12,
-                      transformOrigin: `${radius}vw ${radius}vw`,
-                      filter: "blur(0.5px)",
-                    }}
-                    animate={{
-                      opacity: [0.6, 0.9, 0.6],
-                      boxShadow: [
-                        "0 0 10px 3px rgba(255,255,255,0.4)",
-                        "0 0 15px 5px rgba(255,255,255,0.6)",
-                        "0 0 10px 3px rgba(255,255,255,0.4)",
-                      ],
-                    }}
-                    transition={{
-                      opacity: {
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      },
-                      boxShadow: {
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      },
-                    }}
-                  >
-                    <motion.div
-                      className="w-full h-full"
-                      animate={{
-                        rotateZ: [0, 360],
-                      }}
-                      transition={{
-                        duration: speed,
-                        repeat: Infinity,
-                        ease: "linear",
-                        delay: delay,
-                      }}
-                      style={{
-                        transformOrigin: `-${radius}vw 0`,
-                        transform: `rotateX(75deg) rotateY(15deg) translateX(${radius}vw)`,
-                      }}
-                    />
-                  </motion.div>
-                );
-              })}
-            </div>
-
             {/* Premium grid overlay with depth */}
             <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_0.8px,transparent_0.8px)] [mask-image:radial-gradient(ellipse_70%_70%_at_center,#000_40%,transparent_100%)] bg-[length:20px_20px] opacity-15" />
 
@@ -973,7 +1097,7 @@ export default function StorePage() {
           </div>
 
           {/* Immersive Hero section with 3D particles and dynamic lighting */}
-          <div className="relative overflow-hidden pt-0 pb-10 z-[10]">
+          <div className="relative overflow-hidden pt-0 pb-10 z-[2]">
             {/* Advanced particle system */}
             <ParticleSystem />
 
@@ -983,13 +1107,13 @@ export default function StorePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: [0.2, 0.65, 0.3, 0.9] }}
               >
-                <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-md mb-6 shadow-glow-sm">
+                <div className="inline-flex items-center px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 backdrop-blur-md mb-6 shadow-glow-sm">
                   <Sparkles className="mr-2 w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-primary/90">
                     Cutting-edge developer resources
                   </span>
                 </div>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
                   Premium Developer{" "}
                   <span className="text-primary">Resources</span>
                 </h1>
@@ -1000,7 +1124,7 @@ export default function StorePage() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <a
                     href="#products"
-                    className="relative px-6 py-3 bg-primary text-white rounded-lg font-medium group overflow-hidden"
+                    className="relative px-6 py-3 bg-primary text-white rounded-lg font-medium group overflow-hidden hover:bg-primary/90 transition-colors"
                   >
                     <span className="relative flex items-center justify-center">
                       Browse Resources
@@ -1024,7 +1148,7 @@ export default function StorePage() {
           </div>
 
           {/* Main content sections with proper container width */}
-          <div className="container mx-auto px-4 max-w-7xl">
+          <div className="container mx-auto px-4 max-w-7xl relative z-[3]">
             {/* Orbital Category Universe section */}
             <ScrollSection id="store-categories" className="relative py-20">
               <SectionTransition>
@@ -1143,13 +1267,14 @@ export default function StorePage() {
                   <div className="lg:col-span-3 flex flex-col">
                     <RevealText
                       text="All Products"
-                      className="text-2xl font-bold mb-4"
+                      className="text-2xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80"
                       delay={0.2}
                     />
+
                     {/* Sort & Filter Bar for mobile/tablet */}
                     <div className="lg:hidden w-full flex flex-col gap-3 mb-8">
                       {/* Sort Bar */}
-                      <div className="w-full flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl">
+                      <div className="w-full flex items-center gap-3 bg-gradient-to-br from-background/95 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl">
                         <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 text-primary mr-2">
                           <svg
                             className="w-5 h-5"
@@ -1176,7 +1301,7 @@ export default function StorePage() {
                             id="sort-order"
                             value={sortOrder}
                             onChange={(e) => setSortOrder(e.target.value)}
-                            className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
+                            className="w-full appearance-none bg-background/95 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
                           >
                             <option value="newest">Newest First</option>
                             <option value="oldest">Oldest First</option>
@@ -1206,6 +1331,7 @@ export default function StorePage() {
                         </div>
                       </div>
                     </div>
+
                     {/* Desktop: Sort Bar above grid */}
                     <div className="hidden lg:flex w-full items-center justify-end mb-8">
                       <div className="flex items-center gap-3 bg-gradient-to-br from-background/80 via-primary/5 to-background/90 border border-primary/10 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl min-w-[340px]">
@@ -1225,14 +1351,14 @@ export default function StorePage() {
                           </svg>
                         </span>
                         <label
-                          htmlFor="sort-order"
+                          htmlFor="sort-order-desktop"
                           className="text-base font-semibold text-foreground mr-2"
                         >
                           Sort by
                         </label>
                         <div className="relative flex-1">
                           <select
-                            id="sort-order"
+                            id="sort-order-desktop"
                             value={sortOrder}
                             onChange={(e) => setSortOrder(e.target.value)}
                             className="w-full appearance-none bg-background/80 border border-primary/20 rounded-xl pl-4 pr-10 py-2 text-base font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all duration-200 shadow-sm hover:border-primary/30"
@@ -1265,6 +1391,7 @@ export default function StorePage() {
                         </div>
                       </div>
                     </div>
+
                     {/* Product Grid */}
                     {filteredProducts.length === 0 ? (
                       <GlassCard>
@@ -1281,7 +1408,9 @@ export default function StorePage() {
                         </div>
                       </GlassCard>
                     ) : (
-                      <ProductGrid products={filteredProducts} />
+                      <div className="relative">
+                        <ProductGrid products={filteredProducts} />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1297,13 +1426,13 @@ export default function StorePage() {
                   transition={{ duration: 0.4 }}
                 >
                   {/* Background with subtle animation */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/5 z-0" />
-                  <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:15px_15px] opacity-25 z-0" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5 z-0" />
+                  <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:15px_15px] opacity-15 z-0" />
                   <motion.div
-                    className="absolute -top-[50%] -left-[10%] w-[70%] h-[100%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent opacity-30 rounded-full blur-3xl z-0"
+                    className="absolute -top-[50%] -left-[10%] w-[70%] h-[100%] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-30 rounded-full blur-3xl z-0"
                     animate={{
                       x: [0, 10, 0],
-                      opacity: [0.2, 0.3, 0.2],
+                      opacity: [0.1, 0.2, 0.1],
                     }}
                     transition={{
                       duration: 8,
@@ -1329,7 +1458,7 @@ export default function StorePage() {
 
                     <RevealText
                       text="Stay Ahead with Updates"
-                      className="text-2xl md:text-3xl font-bold text-center mb-3"
+                      className="text-2xl md:text-3xl font-bold text-center mb-3 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80"
                       highlightWords={["Ahead"]}
                     />
 
@@ -1349,10 +1478,10 @@ export default function StorePage() {
                       <input
                         type="email"
                         placeholder="Your email address"
-                        className="w-full px-6 py-4 rounded-xl border border-primary/20 bg-background/70 backdrop-blur-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all text-foreground"
+                        className="w-full px-6 py-4 rounded-xl border border-primary/20 bg-background/95 backdrop-blur-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/10 outline-none transition-all text-foreground"
                       />
                       <motion.button
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-5 py-2.5 bg-primary text-white rounded-lg font-medium"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 px-5 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.97 }}
                       >

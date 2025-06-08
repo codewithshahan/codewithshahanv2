@@ -5,8 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { GumroadProduct } from "@/services/gumroad";
-import RichText from "./RichText";
+import MacOSRichTextRenderer from "@/components/MacOSRichTextRenderer";
 import FeaturedProductBadge from "./FeaturedProductBadge";
+import ProductDescription from "@/components/ProductDescription";
 
 // Cache expiration time in milliseconds (24 hours)
 const CACHE_EXPIRATION = 24 * 60 * 60 * 1000;
@@ -295,25 +296,28 @@ export default function ProductGrid({
           <div className="flex flex-col p-4 flex-grow">
             <h3 className="text-xl font-semibold">{product.name}</h3>
             <div className="mt-2 flex-grow">
-              <RichText
+              <ProductDescription
                 content={product.description}
-                truncate={true}
-                maxLines={3}
-                className="text-muted-foreground line-clamp-3"
+                className="[&_p]:!m-0 [&_p]:!text-sm [&_p]:!text-muted-foreground line-clamp-3"
               />
             </div>
             <div className="flex justify-between items-center mt-4">
               <span className="font-bold text-primary">
                 {product.formatted_price || `$${product.price}`}
               </span>
-              <Link
-                href={`/store/${
-                  product.permalink || product.custom_permalink || product.id
-                }`}
-                className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+              <a
+                href="https://gumroad.com/l/cleancode"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                style={{ textDecoration: "none" }}
               >
-                View Details <ArrowRight size={16} />
-              </Link>
+                View Details{" "}
+                <ArrowRight
+                  size={16}
+                  className="group-hover:translate-x-1 transition-transform"
+                />
+              </a>
             </div>
           </div>
         </div>

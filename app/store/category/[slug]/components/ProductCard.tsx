@@ -3,7 +3,14 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Heart, Star, ShoppingCart, ExternalLink } from "lucide-react";
+import {
+  Heart,
+  Star,
+  ShoppingCart,
+  ExternalLink,
+  ArrowRight,
+} from "lucide-react";
+import ProductDescription from "@/components/ProductDescription";
 
 export interface Product {
   id: string;
@@ -14,6 +21,9 @@ export interface Product {
   rating: number;
   sales: number;
   imageUrl?: string;
+  formatted_price: string;
+  url?: string;
+  permalink: string;
 }
 
 export interface ProductCardProps {
@@ -114,24 +124,52 @@ export function ProductCard({
           </span>
         </div>
 
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-          {product.description}
-        </p>
+        <div className="text-sm text-muted-foreground mb-4 line-clamp-2">
+          <ProductDescription
+            content={product.description}
+            className="[&_p]:!m-0 [&_p]:!text-sm [&_p]:!text-muted-foreground"
+          />
+        </div>
 
         <div className="flex gap-2 mt-auto">
-          <Link
-            href={`/product/${categorySlug}-${product.id}`}
+          <a
+            href={product.url || `https://gumroad.com/l/${product.permalink}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex-1 text-xs bg-primary text-white py-2 rounded-lg flex items-center justify-center font-medium hover:bg-primary/90 transition-colors"
           >
             <ShoppingCart size={14} className="mr-1" />
             Buy Now
-          </Link>
-          <Link
-            href={`/product/${categorySlug}-${product.id}`}
+          </a>
+          <a
+            href={product.url || `https://gumroad.com/l/${product.permalink}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="px-3 py-2 text-xs bg-transparent border border-border rounded-lg hover:bg-background transition-colors"
           >
             <ExternalLink size={14} />
-          </Link>
+          </a>
+        </div>
+
+        <div className="mt-4">
+          <a
+            href={product.url || `https://gumroad.com/l/${product.permalink}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm flex items-center group text-primary hover:text-primary/80 transition-colors"
+          >
+            View Full Details
+            <ArrowRight
+              size={12}
+              className="ml-1 group-hover:translate-x-1 transition-transform"
+            />
+          </a>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <span className="font-medium text-primary">
+            {product.formatted_price}
+          </span>
         </div>
       </div>
     </motion.div>
@@ -231,9 +269,12 @@ export function ProductCardList({
               </span>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-4 flex-grow">
-              {product.description}
-            </p>
+            <div className="text-sm text-muted-foreground mb-4 flex-grow">
+              <ProductDescription
+                content={product.description}
+                className="[&_p]:!m-0 [&_p]:!text-sm [&_p]:!text-muted-foreground"
+              />
+            </div>
 
             <div className="flex gap-2 mt-auto">
               <Link
