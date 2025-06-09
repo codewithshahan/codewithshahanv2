@@ -33,18 +33,45 @@ const categoryIcons: { [key: string]: any } = {
 
 // Category descriptions
 const categoryDescriptions: { [key: string]: string } = {
-  "clean-code": "Write better, cleaner, and maintainable code",
-  design: "UI/UX design principles and practices",
-  "ai-ml": "Artificial Intelligence and Machine Learning",
-  "web-dev": "Modern web development techniques",
-  devops: "DevOps practices and tools",
-  tutorials: "Step-by-step coding tutorials",
-  tips: "Quick tips and tricks",
-  architecture: "Software architecture patterns",
-  javascript: "JavaScript programming and best practices",
-  react: "React.js development and patterns",
-  typescript: "TypeScript development and type safety",
-  frontend: "Frontend development and modern UI",
+  "clean-code":
+    "Master the art of writing elegant, maintainable, and efficient code that stands the test of time",
+  design:
+    "Discover the principles of beautiful, intuitive interfaces and user experiences that delight",
+  "ai-ml":
+    "Explore the cutting edge of artificial intelligence and machine learning, from fundamentals to advanced applications",
+  "web-dev":
+    "Build modern, performant web applications with the latest technologies and best practices",
+  devops:
+    "Streamline your development workflow with modern DevOps practices, tools, and automation techniques",
+  tutorials:
+    "Step-by-step guides to help you master new technologies and build real-world projects",
+  tips: "Quick, actionable insights to level up your development skills and productivity",
+  architecture:
+    "Learn to design scalable, maintainable software systems with proven architectural patterns",
+  javascript:
+    "Dive deep into JavaScript's powerful features, modern syntax, and best practices for web development",
+  react:
+    "Build dynamic, responsive user interfaces with React's component-based architecture and ecosystem",
+  typescript:
+    "Write safer, more maintainable code with TypeScript's powerful type system and modern features",
+  frontend:
+    "Create stunning, performant user interfaces with modern frontend technologies and frameworks",
+  backend:
+    "Design robust, scalable server-side applications and APIs with industry best practices",
+  mobile:
+    "Develop native and cross-platform mobile applications with modern tools and frameworks",
+  database:
+    "Master database design, optimization, and management for modern applications",
+  security:
+    "Implement robust security measures and protect your applications from common vulnerabilities",
+  testing:
+    "Write comprehensive tests and ensure your code's reliability with modern testing practices",
+  performance:
+    "Optimize your applications for speed, efficiency, and exceptional user experience",
+  accessibility:
+    "Create inclusive applications that work for everyone, regardless of abilities",
+  "best-practices":
+    "Learn industry-proven techniques and patterns for writing high-quality code",
 };
 
 export interface Category {
@@ -54,6 +81,8 @@ export interface Category {
   description: string;
   articleCount: number;
   productCount: number;
+  updatedAt?: number;
+  views?: number;
 }
 
 // Function to normalize category/tag names to slugs

@@ -7,6 +7,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { Clock } from "lucide-react";
+import { useTheme } from "next-themes";
 
 interface Article {
   title: string;
@@ -46,6 +47,8 @@ export default function MacOSArticleCard({
   onTagClick,
 }: MacOSArticleCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   return (
     <motion.div
@@ -53,13 +56,18 @@ export default function MacOSArticleCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       className={cn(
-        "group relative bg-card/50 backdrop-blur-sm rounded-xl overflow-hidden border border-border/50 hover:border-primary/50 transition-all duration-300",
+        "group relative rounded-xl overflow-hidden transition-all duration-300",
+        isDark
+          ? "bg-gray-900/80 backdrop-blur-xl border border-gray-800/50"
+          : "bg-white/90 backdrop-blur-xl border border-gray-200/50",
+        "hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)]",
+        "hover:border-primary/30",
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link href={`/articles/${article.slug}`} className="block">
+      <Link href={`/article/${article.slug}`} className="block" prefetch={true}>
         {/* Cover Image */}
         <div className="relative aspect-[16/9] overflow-hidden">
           <Image
@@ -67,7 +75,10 @@ export default function MacOSArticleCard({
             alt={article.title}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
+            priority={index < 2}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
 
         <div className="p-4">
@@ -77,7 +88,15 @@ export default function MacOSArticleCard({
           </h3>
 
           {/* Description Card */}
-          <div className="mb-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+          <div
+            className={cn(
+              "mb-3 p-3 rounded-lg transition-all duration-300",
+              isDark
+                ? "bg-gray-800/50 border border-gray-700/50"
+                : "bg-gray-50/80 border border-gray-200/50",
+              "group-hover:border-primary/20"
+            )}
+          >
             <p className="text-sm text-muted-foreground line-clamp-2">
               {article.description}
             </p>
@@ -86,12 +105,21 @@ export default function MacOSArticleCard({
           {/* Bottom section with metadata and tags */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="relative w-5 h-5 rounded-full overflow-hidden ring-1 ring-primary/20">
+              <div
+                className={cn(
+                  "relative w-5 h-5 rounded-full overflow-hidden transition-all duration-300",
+                  "ring-1",
+                  isDark
+                    ? "ring-gray-700/50 group-hover:ring-primary/30"
+                    : "ring-gray-200/50 group-hover:ring-primary/30"
+                )}
+              >
                 <Image
                   src={article.author.avatar}
                   alt={article.author.name}
                   fill
                   className="object-cover"
+                  sizes="20px"
                 />
               </div>
               <div className="flex flex-col">
@@ -105,7 +133,14 @@ export default function MacOSArticleCard({
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div
+              className={cn(
+                "flex items-center gap-1.5 text-xs transition-colors duration-300",
+                isDark
+                  ? "text-gray-400 group-hover:text-gray-300"
+                  : "text-gray-500 group-hover:text-gray-700"
+              )}
+            >
               <Clock className="w-3 h-3" />
               <span>{article.readingTime}</span>
             </div>
@@ -120,7 +155,11 @@ export default function MacOSArticleCard({
                   e.preventDefault();
                   onTagClick?.(tag);
                 }}
-                className="px-1.5 py-0.5 text-[11px] font-medium rounded-full hover:scale-105 transition-transform"
+                className={cn(
+                  "px-1.5 py-0.5 text-[11px] font-medium rounded-full transition-all duration-300",
+                  "hover:scale-105",
+                  isDark ? "hover:bg-gray-800/50" : "hover:bg-gray-100/50"
+                )}
                 style={{
                   backgroundColor: `${tag.color}15`,
                   color: tag.color,

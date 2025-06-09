@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   LucideIcon,
   Settings,
+  LayoutGrid,
 } from "lucide-react";
 import { useMenu } from "./MenuContext";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -43,6 +44,7 @@ const navColors = {
   newsletter: "#5856d6", // Indigo
   resources: "#ffcc00", // Yellow
   coding: "#00c7be", // Teal
+  categories: "#ff3b30", // Red
 };
 
 // Navigation item interface
@@ -76,6 +78,15 @@ function getCoreNavItems(): NavItem[] {
       ariaLabel: "Blog articles",
       description: "Read the latest articles and tutorials",
       color: navColors.blog,
+    },
+    {
+      id: "categories",
+      name: "Categories",
+      href: "/category",
+      icon: LayoutGrid,
+      ariaLabel: "Browse categories",
+      description: "Explore articles by category",
+      color: navColors.categories,
     },
     {
       id: "store",

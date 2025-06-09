@@ -46,9 +46,30 @@ export default function ThreePanelLayout({
 
   // Define page transition variants
   const pageTransitionVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -10 },
+    hidden: {
+      opacity: 0,
+      y: 10,
+      scale: 0.98,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 30,
+        mass: 0.8,
+      },
+    },
+    exit: {
+      opacity: 0,
+      y: -10,
+      scale: 0.98,
+      transition: {
+        duration: 0.2,
+      },
+    },
   };
 
   // Define sections based on current page
@@ -216,12 +237,11 @@ export default function ThreePanelLayout({
 
         {/* Main Content with Page Transitions */}
         <div className="relative flex-1 overflow-hidden">
-          {/* Main content with proper z-index and width */}
           <motion.div
             className="relative h-full overflow-y-auto overflow-x-hidden w-full"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
           >
             <div className="relative z-[80] w-full">
               <AnimatePresence mode="wait">
@@ -231,7 +251,6 @@ export default function ThreePanelLayout({
                   animate="visible"
                   exit="exit"
                   variants={pageTransitionVariants}
-                  transition={{ duration: 0.3 }}
                   className="w-full"
                 >
                   {children}

@@ -1,162 +1,128 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useState, useEffect, Suspense } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { SimplifiedHashnodeApi } from "@/services/hashnodeApi";
+import { HashnodeArticle } from "@/services/articleCacheService";
+import { CategoryList } from "./CategoryList";
 import { Providers } from "@/components/providers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { MacOSDock } from "@/components/categories/MacOSDock";
-import { Category, getUniqueCategories } from "@/lib/categories";
-import { Loader2 } from "lucide-react";
-import { fetchArticles } from "@/services/api";
-import { fetchProducts } from "@/services/gumroad";
+import { MacOSDock } from "@/components/category/MacOSDock";
+import { getCategoryIcon } from "@/lib/categoryIcons";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "next-themes";
+import { Search, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CategoryHero } from "./components/CategoryHero";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
-export default function CategoryIndexPage() {
-  const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Client-side data fetching with caching
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let categoriesCache: {
+  categories: any[];
+  timestamp: number;
+} | null = null;
 
-  // Fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setLoading(true);
-        console.log("Fetching categories...");
+async function getCategories() {
+  // Check cache first
+  if (categoriesCache && Date.now() - categoriesCache.timestamp < CACHE_TTL) {
+    return categoriesCache.categories;
+  }
 
-        // First, let's check if we can fetch articles and products directly
-        const [articles, products] = await Promise.all([
-          fetchArticles(1),
-          fetchProducts(),
-        ]);
+  try {
+    // Fetch articles with proper error handling
+    const response = await SimplifiedHashnodeApi.fetchArticles(50);
+    if (!response || !response.articles) {
+      throw new Error("Invalid response from Hashnode API");
+    }
 
-        console.log("Articles response:", articles);
-        console.log("Products response:", products);
+    const { articles } = response;
+    const categoryMap = new Map();
 
-        // Now fetch categories using our utility
-        const data = await getUniqueCategories();
-        console.log("Processed categories:", data);
+    // Process articles and build categories
+    articles.forEach((article: HashnodeArticle) => {
+      if (!article.tags) return;
 
-        if (data.length === 0) {
-          setError("No categories found. Please check back later.");
+      article.tags.forEach((tag) => {
+        if (!categoryMap.has(tag.slug)) {
+          categoryMap.set(tag.slug, {
+            name: tag.name,
+            slug: tag.slug,
+            icon: getCategoryIcon(tag.name),
+            description: `Articles about ${tag.name}`,
+            color: tag.color || "#3B82F6",
+            articleCount: 1,
+            latestArticle: article,
+            articles: [article],
+          });
         } else {
-          setCategories(data);
-          setError(null);
+          const category = categoryMap.get(tag.slug);
+          category.articleCount += 1;
+          category.articles.push(article);
+
+          // Update latest article if this one is newer
+          if (
+            new Date(article.publishedAt) >
+            new Date(category.latestArticle.publishedAt)
+          ) {
+            category.latestArticle = article;
+          }
         }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        setError("Failed to load categories. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
+      });
+    });
+
+    // Convert to array and sort by article count
+    const categories = Array.from(categoryMap.values())
+      .filter((category) => category.articleCount > 0)
+      .sort((a, b) => b.articleCount - a.articleCount);
+
+    // Update cache
+    categoriesCache = {
+      categories,
+      timestamp: Date.now(),
     };
 
-    fetchCategories();
-  }, []);
+    return categories;
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    throw error;
+  }
+}
+
+export default async function CategoriesPage() {
+  // Fetch initial data on the server
+  const initialCategories = await getCategories();
 
   return (
     <Providers>
-      <div className="min-h-screen bg-background text-foreground relative overflow-x-hidden">
-        {/* 3D Background with Particles */}
-        <div className="fixed inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-accent/10" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))]" />
-        </div>
-
-        {/* Main Content */}
+      <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
 
-        <main className="relative z-10 container mx-auto px-4 py-24">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
-              Browse Categories
-            </h1>
-            <p className="text-xl text-white/80 max-w-2xl mx-auto">
-              Explore our collection of articles and resources across different
-              categories
-            </p>
-          </motion.div>
+        {/* Server-rendered Hero Section */}
+        <CategoryHero />
 
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-              <p className="text-white/60">Loading categories...</p>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <p className="text-red-400 mb-4">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categories.map((category, index) => {
-                const Icon = category.icon;
-                return (
-                  <motion.div
-                    key={category.slug}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="group cursor-pointer"
-                    onClick={() => router.push(`/category/${category.slug}`)}
-                  >
-                    <div className="relative bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300">
-                      {/* Category Icon */}
-                      <div className="absolute top-4 right-4 text-primary/80">
-                        <Icon size={24} />
-                      </div>
-
-                      {/* Category Info */}
-                      <div className="pr-12">
-                        <h2 className="text-2xl font-semibold mb-2">
-                          {category.name}
-                        </h2>
-                        <p className="text-white/60 text-sm mb-4">
-                          {category.description}
-                        </p>
-
-                        {/* Stats */}
-                        <div className="flex items-center gap-4 text-sm text-white/40">
-                          <span>{category.articleCount} Articles</span>
-                          <span>•</span>
-                          <span>{category.productCount} Products</span>
-                        </div>
-                      </div>
-
-                      {/* Hover effect */}
-                      <motion.div
-                        className="absolute inset-0 rounded-2xl pointer-events-none"
-                        initial={false}
-                        animate={{
-                          boxShadow: "inset 0 0 100px rgba(255,255,255,0)",
-                        }}
-                        whileHover={{
-                          boxShadow: "inset 0 0 100px rgba(255,255,255,0.1)",
-                        }}
-                      />
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </main>
-
-        {/* macOS-Style Dock */}
-        <MacOSDock currentCategory="" />
+        {/* Categories Grid with Suspense */}
+        <section className="flex-1 py-8 md:py-12">
+          <div className="container mx-auto px-4">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center min-h-[400px]">
+                  <LoadingSpinner size={48} />
+                </div>
+              }
+            >
+              <CategoryList
+                initialCategories={initialCategories}
+                selectedCategory={null}
+                onCategorySelect={() => {}}
+              />
+            </Suspense>
+          </div>
+        </section>
 
         <Footer />
+        <MacOSDock currentCategory="" />
       </div>
     </Providers>
   );
