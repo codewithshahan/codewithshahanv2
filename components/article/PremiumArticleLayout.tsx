@@ -198,247 +198,221 @@ const PremiumArticleLayout: React.FC<PremiumArticleLayoutProps> = ({
           "@type": "WebPage",
           "@id": `https://codewithshahan.com/article/${article.slug}`,
         },
-        wordCount: article.content?.split(/\s+/).length || 0,
-        articleBody: article.content?.replace(/[#*`_]/g, "") || "",
-        keywords: article.tags?.map((tag) => tag.name).join(", ") || "",
       };
 
-      // Create script element for structured data
+      // Add schema to document
       const script = document.createElement("script");
       script.type = "application/ld+json";
       script.text = JSON.stringify(schema);
-
-      // Remove any existing script tags with the same ID to avoid duplicates
-      const existingScript = document.getElementById("article-structured-data");
-      if (existingScript) {
-        existingScript.remove();
-      }
-
-      // Add ID to the script tag for easy reference
-      script.id = "article-structured-data";
       document.head.appendChild(script);
 
-      // Clean up on unmount
       return () => {
-        const scriptToRemove = document.getElementById(
-          "article-structured-data"
-        );
-        if (scriptToRemove) {
-          scriptToRemove.remove();
-        }
+        document.head.removeChild(script);
       };
     }
   }, [article]);
 
-  // Handle like action
   const handleLike = () => {
     setHasLiked(!hasLiked);
     setLikeCount((prev) => (hasLiked ? prev - 1 : prev + 1));
   };
 
-  // Handle bookmark action
   const handleBookmark = () => {
     setIsBookmarked(!isBookmarked);
-
-    // Show success message
-    const message = isBookmarked
-      ? "Article removed from bookmarks"
-      : "Article saved to bookmarks";
-
-    showToast(message);
   };
 
-  // Handle share action
   const handleShare = () => {
     setShowShareOptions(!showShareOptions);
-
-    if (navigator.share) {
-      navigator
-        .share({
-          title: article.title,
-          text: article.description,
-          url: window.location.href,
-        })
-        .catch((err) => {
-          console.error("Share failed:", err);
-        });
-    }
   };
 
-  // Copy article URL to clipboard
   const copyToClipboard = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-
-    showToast("Link copied to clipboard");
   };
 
-  // Toast notification
   const showToast = (message: string) => {
-    // Simple toast implementation
-    const toast = document.createElement("div");
-    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
-      isDark ? "bg-gray-800" : "bg-gray-900"
-    }`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      toast.remove();
-    }, 3000);
+    // Implement toast notification
+    console.log(message);
   };
 
-  // Enhanced floating bar with new controls
   const renderFloatingBar = () => (
     <motion.div
-      className="fixed bottom-0 left-0 right-0 z-40"
-      style={{ opacity: floatingBarOpacity, y: floatingBarY }}
+      style={{
+        opacity: floatingBarOpacity,
+        y: floatingBarY,
+      }}
+      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
     >
-      <div className={`container mx-auto px-4 mb-4`}>
-        <div
-          className={`max-w-3xl mx-auto rounded-full py-2 px-4 flex items-center justify-between ${
-            isDark
-              ? "bg-gray-900/90 border border-gray-800 backdrop-blur-md"
-              : "bg-white/90 border border-gray-200 shadow-md backdrop-blur-md"
-          }`}
-        >
-          <div className="truncate max-w-[40%]">
-            <span className="text-sm font-medium">{article.title}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Reading mode toggle */}
-            <div className="flex items-center gap-1 mr-4">
-              <button
-                onClick={() => setReadingMode("normal")}
-                className={`p-2 rounded-md transition-colors ${
-                  readingMode === "normal"
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`}
-                title="Normal mode"
-              >
-                <ZoomOut size={16} />
-              </button>
-              <button
-                onClick={() => setReadingMode("focus")}
-                className={`p-2 rounded-md transition-colors ${
-                  readingMode === "focus"
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`}
-                title="Focus mode"
-              >
-                <ZoomIn size={16} />
-              </button>
-              <button
-                onClick={() => setReadingMode("presentation")}
-                className={`p-2 rounded-md transition-colors ${
-                  readingMode === "presentation"
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`}
-                title="Presentation mode"
-              >
-                <Maximize2 size={16} />
-              </button>
-            </div>
-
-            {/* AI features toggle */}
-            <button
-              onClick={() => setIsAIHighlightsEnabled(!isAIHighlightsEnabled)}
-              className={`p-2 rounded-md ${
-                isAIHighlightsEnabled ? "text-primary" : ""
-              }`}
-              title="Toggle AI highlights"
-            >
-              <Sparkles size={16} />
-            </button>
-
-            {/* Text-to-speech toggle */}
-            <button
-              onClick={() => setIsTextToSpeechEnabled(!isTextToSpeechEnabled)}
-              className={`p-2 rounded-md ${
-                isTextToSpeechEnabled ? "text-primary" : ""
-              }`}
-              title="Toggle text-to-speech"
-            >
-              <Volume2 size={16} />
-            </button>
-
-            {/* Existing action buttons */}
-            <button
-              onClick={handleLike}
-              className={`p-2 rounded-md ${hasLiked ? "text-primary" : ""}`}
-            >
-              <Heart size={16} className={hasLiked ? "fill-primary" : ""} />
-            </button>
-
-            <button
-              onClick={handleBookmark}
-              className={`p-2 rounded-md ${
-                isBookmarked ? "text-blue-500" : ""
-              }`}
-            >
-              <Bookmark
-                size={16}
-                className={isBookmarked ? "fill-blue-500" : ""}
-              />
-            </button>
-
-            <button onClick={handleShare} className="p-2 rounded-md">
-              <Share2 size={16} />
-            </button>
-          </div>
+      <div className="bg-background/80 backdrop-blur-lg border border-border rounded-full px-4 py-2 shadow-lg">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={handleLike}
+            className={`flex items-center space-x-1 ${
+              hasLiked ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <Heart className="w-4 h-4" />
+            <span>{likeCount}</span>
+          </button>
+          <button
+            onClick={handleBookmark}
+            className={`flex items-center space-x-1 ${
+              isBookmarked ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <Bookmark className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleShare}
+            className="flex items-center space-x-1 text-muted-foreground"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </motion.div>
   );
 
-  // Enhanced article content wrapper
   const renderArticleContent = () => (
-    <div
-      className={`rounded-2xl overflow-hidden ${
-        isDark
-          ? "bg-gray-900/80 backdrop-blur-lg border border-gray-800"
-          : "bg-white border border-gray-100 shadow-lg"
-      } p-8 ${
-        readingMode === "focus"
-          ? "max-w-2xl mx-auto"
-          : readingMode === "presentation"
-          ? "max-w-4xl mx-auto"
-          : ""
-      }`}
-    >
-      <PremiumMacOSRichTextRenderer
-        content={article.content}
-        enableTextToSpeech={isTextToSpeechEnabled}
-        enableAIHighlights={isAIHighlightsEnabled}
+    <div className="relative">
+      {/* Progress bar */}
+      <motion.div
+        style={{ width: progressBarWidth }}
+        className="fixed top-0 left-0 h-1 bg-primary z-50"
       />
+
+      {/* Main content */}
+      <div
+        ref={mainContentRef}
+        className="container mx-auto px-4 py-8 md:py-12"
+      >
+        <div className="max-w-4xl mx-auto">
+          {/* Article header */}
+          <div className="mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              {article.title}
+            </h1>
+            {article.description && (
+              <p className="text-xl text-muted-foreground mb-8">
+                {article.description}
+              </p>
+            )}
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+              {article.readingTime && (
+                <div className="flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  <span>{article.readingTime}</span>
+                </div>
+              )}
+              {article.publishedAt && (
+                <div className="flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  <span>{formatDate(article.publishedAt)}</span>
+                </div>
+              )}
+              {article.views !== undefined && (
+                <div className="flex items-center">
+                  <Eye className="w-4 h-4 mr-1" />
+                  <span>{article.views} views</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Article content */}
+          <div className="prose prose-lg dark:prose-invert max-w-none">
+            <PremiumMacOSRichTextRenderer content={article.content} />
+          </div>
+
+          {/* Article footer */}
+          <div className="mt-12 pt-8 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleLike}
+                  className={`flex items-center space-x-2 ${
+                    hasLiked ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <Heart className="w-5 h-5" />
+                  <span>{likeCount}</span>
+                </button>
+                <button
+                  onClick={handleBookmark}
+                  className={`flex items-center space-x-2 ${
+                    isBookmarked ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <Bookmark className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="flex items-center space-x-2 text-muted-foreground"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex items-center space-x-4">
+                {article.tags?.map((tag) => (
+                  <Link
+                    key={tag.slug}
+                    href={`/tag/${tag.slug}`}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    #{tag.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating action bar */}
+      {renderFloatingBar()}
+
+      {/* Share options modal */}
+      <AnimatePresence>
+        {showShareOptions && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
+          >
+            <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-xl font-semibold mb-4">Share Article</h3>
+              <div className="space-y-4">
+                <button
+                  onClick={copyToClipboard}
+                  className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                >
+                  <span>Copy Link</span>
+                  {copied ? (
+                    <Check className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                </button>
+                {/* Add more share options here */}
+              </div>
+              <button
+                onClick={() => setShowShareOptions(false)}
+                className="mt-6 w-full p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 
-  // If not mounted yet, render a simple loading state to avoid hydration issues
-  if (!isMounted) {
-    return (
-      <div className="pb-16 bg-gray-950">
-        <div className="container mx-auto px-4 py-16 flex items-center justify-center min-h-[70vh]">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`pb-16 ${isDark ? "bg-gray-950" : "bg-white"}`}>
-      {/* Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-primary/80 z-50 origin-left"
-        style={{ scaleX: progressBarWidth }}
-      />
-
-      {/* Article Hero with new features */}
+    <div className="min-h-screen bg-background">
+      {/* 3D Hero Section */}
       <ArticleHero
         title={article.title}
         description={article.description}
@@ -449,233 +423,23 @@ const PremiumArticleLayout: React.FC<PremiumArticleLayoutProps> = ({
         likes={likeCount}
         comments={article.commentCount}
         author={article.author}
-        category={
-          article.tags && article.tags.length > 0
-            ? article.tags[0].name
-            : undefined
-        }
-        tags={article.tags || []}
+        category={article.tags?.[0]?.name}
         slug={article.slug}
+        tags={article.tags}
         scrollY={scrollY}
         enableParticles={true}
         enableDepthEffect={true}
       />
 
-      {/* Main Content Area */}
-      <div className="container mx-auto px-4 relative -mt-16">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Sidebar - Table of Contents */}
-          {readingMode === "normal" && (
-            <div className="lg:w-64 hidden lg:block">
-              <TableOfContents
-                headings={headings}
-                className="top-24"
-                article={{
-                  title: article.title,
-                  readingTime: article.readingTime,
-                }}
-              />
-            </div>
-          )}
+      {/* Main Content */}
+      {renderArticleContent()}
 
-          {/* Main Content */}
-          <div className="flex-1">
-            {/* Series Navigation */}
-            {article.series && readingMode === "normal" && (
-              <div
-                className={`mb-8 rounded-xl border ${
-                  isDark
-                    ? "bg-gray-900/80 border-gray-800"
-                    : "bg-white border-gray-200"
-                } overflow-hidden`}
-              >
-                <div
-                  className={`px-4 py-3 border-b ${
-                    isDark
-                      ? "border-gray-800 bg-gray-800/50"
-                      : "border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <h3 className="font-medium">Series: {article.series.name}</h3>
-                </div>
-                <div className="p-4">
-                  <ul className="space-y-3">
-                    {article.series.posts.map((post, index) => (
-                      <li key={post.slug} className="flex">
-                        <div className="mr-3 mt-0.5">
-                          {post.isCurrent ? (
-                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white">
-                              {index + 1}
-                            </div>
-                          ) : post.isCompleted ? (
-                            <div className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center">
-                              <Check
-                                size={14}
-                                className="text-gray-500 dark:text-gray-400"
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                              {index + 1}
-                            </div>
-                          )}
-                        </div>
-                        <div className={post.isCurrent ? "font-medium" : ""}>
-                          {post.isCurrent ? (
-                            <span>{post.title}</span>
-                          ) : (
-                            <Link
-                              href={`/article/${post.slug}`}
-                              className="hover:text-primary"
-                            >
-                              {post.title}
-                            </Link>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Article Content */}
-            {renderArticleContent()}
-
-            {/* Article Actions */}
-            {readingMode === "normal" && (
-              <div
-                className={`mt-8 p-6 rounded-2xl ${
-                  isDark
-                    ? "bg-gray-900/80 backdrop-blur-lg border border-gray-800"
-                    : "bg-white border border-gray-100 shadow-lg"
-                }`}
-              >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleLike}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                        hasLiked
-                          ? "bg-primary/10 text-primary"
-                          : isDark
-                          ? "bg-gray-800 hover:bg-gray-700"
-                          : "bg-gray-100 hover:bg-gray-200"
-                      } transition-colors`}
-                    >
-                      {hasLiked ? (
-                        <Heart size={18} className="fill-primary" />
-                      ) : (
-                        <Heart size={18} />
-                      )}
-                      <span>{likeCount}</span>
-                    </button>
-
-                    <button
-                      onClick={handleBookmark}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                        isBookmarked
-                          ? "bg-blue-500/10 text-blue-500"
-                          : isDark
-                          ? "bg-gray-800 hover:bg-gray-700"
-                          : "bg-gray-100 hover:bg-gray-200"
-                      } transition-colors`}
-                    >
-                      <Bookmark
-                        size={18}
-                        className={isBookmarked ? "fill-blue-500" : ""}
-                      />
-                      <span>{isBookmarked ? "Saved" : "Save"}</span>
-                    </button>
-
-                    <div className="relative">
-                      <button
-                        onClick={handleShare}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                          isDark
-                            ? "bg-gray-800 hover:bg-gray-700"
-                            : "bg-gray-100 hover:bg-gray-200"
-                        } transition-colors`}
-                      >
-                        <Share2 size={18} />
-                        <span>Share</span>
-                      </button>
-
-                      {showShareOptions && (
-                        <div
-                          className={`absolute top-full left-0 mt-2 rounded-lg shadow-lg ${
-                            isDark ? "bg-gray-800" : "bg-white"
-                          } p-2 z-10 min-w-[200px]`}
-                        >
-                          <button
-                            onClick={copyToClipboard}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-md w-full text-left ${
-                              isDark ? "hover:bg-gray-700" : "hover:bg-gray-100"
-                            }`}
-                          >
-                            {copied ? (
-                              <Check size={16} className="text-green-500" />
-                            ) : (
-                              <Copy size={16} />
-                            )}
-                            <span>Copy link</span>
-                          </button>
-                          {/* Add more share options as needed */}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare size={18} />
-                      <span>{article.commentCount || 0} comments</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Comments */}
-            {readingMode === "normal" && (
-              <NextGenComments articleId={article.id} />
-            )}
-
-            {/* Tags */}
-            {article.tags &&
-              article.tags.length > 0 &&
-              readingMode === "normal" && (
-                <div
-                  className={`mt-8 p-6 rounded-2xl ${
-                    isDark
-                      ? "bg-gray-900/80 backdrop-blur-lg border border-gray-800"
-                      : "bg-white border border-gray-100 shadow-lg"
-                  }`}
-                >
-                  <h3 className="text-lg font-medium mb-4">Related topics</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {article.tags.map((tag) => (
-                      <Link
-                        key={tag.slug}
-                        href={`/tag/${tag.slug}`}
-                        className={`px-3 py-1.5 rounded-full text-sm ${
-                          isDark
-                            ? "bg-gray-800 hover:bg-gray-700"
-                            : "bg-gray-100 hover:bg-gray-200"
-                        }`}
-                      >
-                        {tag.name}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-          </div>
+      {/* Comments Section */}
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          <NextGenComments articleId={article.id} />
         </div>
       </div>
-
-      {/* Floating action bar */}
-      {renderFloatingBar()}
     </div>
   );
 };

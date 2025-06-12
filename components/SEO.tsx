@@ -46,7 +46,7 @@ export default function SEO({
   // Dynamically set meta tags based on the page path
   React.useEffect(() => {
     // Customize SEO metadata for specific page types
-    if (pathname?.includes("/blog/")) {
+    if (pathname?.includes("/article/")) {
       document.documentElement.setAttribute("itemscope", "");
       document.documentElement.setAttribute(
         "itemtype",

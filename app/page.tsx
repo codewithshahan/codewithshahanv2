@@ -83,31 +83,27 @@ export default function HomePage() {
 
   useEffect(() => {
     const loadData = async () => {
-      try {
-        // Load articles
-        const articlesResult = await SimplifiedHashnodeApi.fetchArticles(20);
-        setArticles(articlesResult.articles);
+      // Load articles
+      const articlesResult = await SimplifiedHashnodeApi.fetchArticles(20);
+      setArticles(articlesResult.articles);
 
-        // Load Gumroad products
-        const response = await fetch("/api/gumroad/products");
-        const productsData = await response.json();
-        setProducts(
-          productsData.map((product: any) => ({
-            id: product.id,
-            title: product.name,
-            description: product.description,
-            price: product.price,
-            currency: product.currency,
-            coverImage: product.thumbnail_url,
-            rating: product.rating || 4.5,
-            downloads: product.downloads || 0,
-            url: product.url,
-            tags: product.tags || [],
-          }))
-        );
-      } catch (error) {
-        console.error("Error loading data:", error);
-      }
+      // Load Gumroad products
+      const response = await fetch("/api/gumroad/products");
+      const productsData = await response.json();
+      setProducts(
+        productsData.map((product: any) => ({
+          id: product.id,
+          title: product.name,
+          description: product.description,
+          price: product.price,
+          currency: product.currency,
+          coverImage: product.thumbnail_url,
+          rating: product.rating || 4.5,
+          downloads: product.downloads || 0,
+          url: product.url,
+          tags: product.tags || [],
+        }))
+      );
     };
 
     loadData();

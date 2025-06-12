@@ -83,6 +83,10 @@ const config: Config = {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.5" },
         },
+        loading: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(300%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -90,6 +94,7 @@ const config: Config = {
         shine: "shine 2s infinite",
         shimmer: "shimmer 2s infinite linear",
         pulse: "pulse 2s infinite",
+        loading: "loading 1.5s ease-in-out infinite",
       },
     },
   },

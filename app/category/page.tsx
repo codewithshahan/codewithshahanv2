@@ -105,13 +105,7 @@ export default async function CategoriesPage() {
         {/* Categories Grid with Suspense */}
         <section className="flex-1 py-8 md:py-12">
           <div className="container mx-auto px-4">
-            <Suspense
-              fallback={
-                <div className="flex items-center justify-center min-h-[400px]">
-                  <LoadingSpinner size={48} />
-                </div>
-              }
-            >
+            <Suspense>
               <CategoryList
                 initialCategories={initialCategories}
                 selectedCategory={null}

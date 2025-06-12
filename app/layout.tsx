@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
-import NavigationLoader from "@/components/NavigationLoader";
 import { Providers } from "@/components/providers";
 import ClientLayout from "@/components/layouts/ClientLayout";
-import { ScrollProvider } from "@/contexts/ScrollContext";
 
 export const metadata: Metadata = {
   title: "CodewithShahan - Premium Web Development & AI Resources",
@@ -87,16 +85,29 @@ export default function RootLayout({
           media="(prefers-color-scheme: light)"
         />
         <Script src="/js/clearMockCache.js" strategy="beforeInteractive" />
+        <style>{`
+          :root {
+            color-scheme: light dark;
+          }
+          * {
+            transition: background-color 0.3s ease-in-out,
+                       color 0.3s ease-in-out,
+                       border-color 0.3s ease-in-out,
+                       box-shadow 0.3s ease-in-out !important;
+          }
+        `}</style>
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>
-          <ClientLayout>{children}</ClientLayout>
+          <div className="relative flex min-h-screen flex-col">
+            <ClientLayout>{children}</ClientLayout>
+          </div>
           {/* Schema.org structured data */}
           <Script id="navigation-schema" type="application/ld+json">
             {JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              name: "CodewithShahan",
+              name: "Codewithshahan",
               url: "https://codewithshahan.com",
               potentialAction: {
                 "@type": "SearchAction",
@@ -110,7 +121,7 @@ export default function RootLayout({
             {JSON.stringify({
               "@context": "https://schema.org",
               "@type": "Organization",
-              name: "CodewithShahan",
+              name: "Codewithshahan",
               url: "https://codewithshahan.com",
               logo: "https://codewithshahan.com/icons/logo/icon.svg",
               sameAs: [

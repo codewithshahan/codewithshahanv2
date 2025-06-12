@@ -1,0 +1,9 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+export const runtime = "edge";
+export const preferredRegion = "auto";
+export const streaming = true;
+export const suspense = true;
+export const parallelRoutes = true;
+export const instantNavigation = true;

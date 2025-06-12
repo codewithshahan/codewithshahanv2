@@ -50,7 +50,21 @@ const contactFormSchema = z.object({
 type ContactFormData = z.infer<typeof contactFormSchema>;
 
 // Floating particle component for premium background effect
-const FloatingParticle = ({ size, x, y, delay, duration }) => (
+interface FloatingParticleProps {
+  size: number;
+  x: number;
+  y: number;
+  delay: number;
+  duration: number;
+}
+
+const FloatingParticle = ({
+  size,
+  x,
+  y,
+  delay,
+  duration,
+}: FloatingParticleProps) => (
   <motion.div
     className="absolute rounded-full bg-gradient-to-r from-primary/20 to-accent/20"
     style={{
@@ -81,23 +95,19 @@ const ContactForm = () => {
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     // Validate form
     if (!name || !email || !message) {
       setError("Please fill in all fields");
-      setLoading(false);
       return;
     }
 
     if (!email.includes("@")) {
       setError("Please enter a valid email address");
-      setLoading(false);
       return;
     }
 
@@ -117,8 +127,6 @@ const ContactForm = () => {
       }, 5000);
     } catch (err) {
       setError("Failed to send message. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -200,7 +208,7 @@ const ContactForm = () => {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg glass-input focus:ring-1 focus:ring-primary/30 focus:outline-none"
+                    className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="Your name"
                   />
                 </motion.div>
@@ -222,7 +230,7 @@ const ContactForm = () => {
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg glass-input focus:ring-1 focus:ring-primary/30 focus:outline-none"
+                    className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="your.email@example.com"
                   />
                 </motion.div>
@@ -241,42 +249,22 @@ const ContactForm = () => {
                 >
                   <textarea
                     id="message"
-                    rows={5}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg glass-input focus:ring-1 focus:ring-primary/30 focus:outline-none"
-                    placeholder="Your message here..."
+                    className="w-full px-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[150px]"
+                    placeholder="Your message..."
                   />
                 </motion.div>
               </div>
 
-              <motion.div
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="inline-block"
+              <motion.button
+                type="submit"
+                className="px-6 py-3 rounded-lg font-medium transition-all duration-300 bg-primary text-white hover:bg-primary/90"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                    loading
-                      ? "bg-gradient-to-r from-gray-600 to-gray-700 text-gray-400 cursor-not-allowed"
-                      : "bg-gradient-to-r from-primary to-secondary text-white hover:shadow-lg hover:shadow-primary/20"
-                  }`}
-                >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-gray-400 border-t-gray-200 rounded-full animate-spin mr-2"></div>
-                      Sending...
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      Send Message
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </div>
-                  )}
-                </button>
-              </motion.div>
+                Send Message
+              </motion.button>
             </motion.form>
           )}
         </div>

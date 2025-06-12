@@ -16,12 +16,36 @@ interface HoverEffectProps {
   animateOnClick?: boolean;
   variant?: "gloss" | "flat" | "glass" | "text" | "highlight";
   rounded?: boolean;
+  style?: React.CSSProperties;
 }
 
-export default function HoverEffect({
+interface ButtonProps {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+  type?: "button" | "submit" | "reset";
+  animateOnClick?: boolean;
+  variant?: "default" | "primary" | "secondary" | "ghost";
+  style?: React.CSSProperties;
+}
+
+const getButtonVariantClasses = (variant: ButtonProps["variant"]) => {
+  switch (variant) {
+    case "primary":
+      return "bg-blue-500 text-white hover:bg-blue-600";
+    case "secondary":
+      return "bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600";
+    case "ghost":
+      return "bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800";
+    default:
+      return "bg-white text-gray-900 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700";
+  }
+};
+
+export function HoverEffect({
   children,
-  className,
-  type = "scale",
+  className = "",
+  type = "all",
   intensity = "medium",
   color,
   disabled = false,
@@ -29,6 +53,7 @@ export default function HoverEffect({
   animateOnClick = true,
   variant = "flat",
   rounded = true,
+  style,
 }: HoverEffectProps) {
   const [isHovering, setIsHovering] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -213,6 +238,7 @@ export default function HoverEffect({
       style={{
         cursor: onClick && !disabled ? "pointer" : "default",
         opacity: disabled ? 0.6 : 1,
+        ...style,
       }}
     >
       {children}
@@ -220,19 +246,65 @@ export default function HoverEffect({
   );
 }
 
-// Preset components for common use cases
-export function ScaleOnHover({
+export const ClickableButton: React.FC<ButtonProps> = ({
   children,
-  className,
-  ...props
-}: Omit<HoverEffectProps, "type">) {
-  return (
-    <HoverEffect className={className} type="scale" {...props}>
-      {children}
-    </HoverEffect>
-  );
-}
+  className = "",
+  onClick,
+  type = "button",
+  animateOnClick = true,
+  variant = "default",
+  style,
+}) => {
+  const [isPressed, setIsPressed] = useState(false);
 
+  const handleClick = () => {
+    if (animateOnClick) {
+      setIsPressed(true);
+      setTimeout(() => setIsPressed(false), 150);
+    }
+    onClick?.();
+  };
+
+  return (
+    <motion.button
+      type={type}
+      onClick={handleClick}
+      className={`relative overflow-hidden rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200
+        ${getButtonVariantClasses(variant)}
+        ${className}`}
+      style={style}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: animateOnClick ? 0.98 : 1 }}
+      animate={isPressed ? { scale: 0.98 } : { scale: 1 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-white/10"
+        initial={{ opacity: 0 }}
+        whileHover={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+      />
+      {children}
+    </motion.button>
+  );
+};
+
+export const ScaleOnHover: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = "" }) => {
+  return (
+    <motion.div
+      className={className}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+// Preset components for common use cases
 export function GlowOnHover({
   children,
   className,
@@ -268,24 +340,6 @@ export function PremiumCard({
       type="all"
       variant="glass"
       intensity="medium"
-      {...props}
-    >
-      {children}
-    </HoverEffect>
-  );
-}
-
-export function ClickableButton({
-  children,
-  className,
-  ...props
-}: Omit<HoverEffectProps, "type" | "animateOnClick" | "variant">) {
-  return (
-    <HoverEffect
-      className={cn("px-4 py-2 text-center", className)}
-      type="all"
-      variant="glass"
-      animateOnClick={true}
       {...props}
     >
       {children}

@@ -24,12 +24,14 @@ interface BlogCardProps {
   };
   index?: number;
   featured?: boolean;
+  className?: string;
 }
 
 export default function BlogCard({
   post,
   index = 0,
   featured = false,
+  className,
 }: BlogCardProps) {
   // Animation variants with staggered children
   const cardVariants = {
@@ -76,8 +78,12 @@ export default function BlogCard({
       }`}
     >
       <Link
-        href={`/blog/${post.id}`}
-        className="outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        href={`/article/${post.id}`}
+        prefetch={true}
+        className={cn(
+          "outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          className
+        )}
       >
         <div className="relative flex h-full flex-col overflow-hidden border border-border/40 rounded-2xl transition-all">
           {/* Card image with hover animation */}

@@ -59,7 +59,6 @@ import ProductDescription from "@/components/ProductDescription";
 // Optimize particle system rendering
 const ParticleSystem = dynamic(() => import("@/components/ParticleSystem"), {
   ssr: false,
-  loading: () => null, // Remove loading placeholder for faster initial render
 });
 
 // Animation variants for staggered grid items

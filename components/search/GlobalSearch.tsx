@@ -16,6 +16,7 @@ import {
 interface GlobalSearchProps {
   onFocusChange?: (focused: boolean) => void;
   className?: string;
+  resultsContainerClassName?: string;
 }
 
 // Real search function using Hashnode data
@@ -49,6 +50,7 @@ const fetchSearchResults = async (
 export default function GlobalSearch({
   onFocusChange,
   className,
+  resultsContainerClassName,
 }: GlobalSearchProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -241,13 +243,34 @@ export default function GlobalSearch({
         </motion.div>
 
         {/* Search Results */}
-        <SearchResults
-          results={results}
-          isLoading={isLoading}
-          query={query}
-          onClear={clearSearch}
-          visible={isFocused && (query.length > 1 || isLoading)}
-        />
+        <AnimatePresence>
+          {isFocused && (query.length > 1 || isLoading) && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className={cn(
+                "absolute top-full left-0 right-0 mt-2",
+                "rounded-xl overflow-hidden",
+                "transition-all duration-300",
+                isDark
+                  ? "bg-black/80 border border-white/10"
+                  : "bg-white/90 border border-black/10",
+                "shadow-lg backdrop-blur-xl",
+                resultsContainerClassName
+              )}
+            >
+              <SearchResults
+                results={results}
+                isLoading={isLoading}
+                query={query}
+                onClear={clearSearch}
+                visible={true}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </MotionConfig>
   );

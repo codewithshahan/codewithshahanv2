@@ -17,10 +17,12 @@ import { SimplifiedHashnodeApi } from "@/services/hashnodeApi";
 import { HashnodeArticle } from "@/services/articleCacheService";
 import { cn } from "@/lib/utils";
 import useMediaQuery from "@/hooks/useMediaQuery";
+import Link from "next/link";
 
 interface GlobalSearchProps {
   className?: string;
   onFocusChange?: (focused: boolean) => void;
+  resultsContainerClassName?: string;
 }
 
 // Enhanced search categories with icons and descriptions
@@ -57,9 +59,30 @@ const searchCategories = [
   },
 ];
 
+// Add this new function at the top level
+const scrollToButton = (buttonElement: HTMLElement) => {
+  const container = buttonElement.parentElement;
+  if (!container) return;
+
+  const containerWidth = container.offsetWidth;
+  const buttonLeft = buttonElement.offsetLeft;
+  const buttonWidth = buttonElement.offsetWidth;
+  const scrollLeft = container.scrollLeft;
+
+  // Calculate the target scroll position to center the button
+  const targetScroll = buttonLeft - containerWidth / 2 + buttonWidth / 2;
+
+  // Smooth scroll to the target position
+  container.scrollTo({
+    left: targetScroll,
+    behavior: "smooth",
+  });
+};
+
 export default function GlobalSearch({
   className,
   onFocusChange,
+  resultsContainerClassName,
 }: GlobalSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -219,7 +242,7 @@ export default function GlobalSearch({
         case "Enter":
           e.preventDefault();
           if (selectedIndex >= 0 && results[selectedIndex]) {
-            router.push(`/blog/${results[selectedIndex].slug}`);
+            router.push(`/article/${results[selectedIndex].slug}`);
             setIsOpen(false);
             onFocusChange?.(false);
           }
@@ -255,7 +278,7 @@ export default function GlobalSearch({
 
   // Handle result selection
   const handleResultClick = (slug: string) => {
-    router.push(`/blog/${slug}`);
+    router.push(`/article/${slug}`);
     handleSearchClose();
   };
 
@@ -331,7 +354,8 @@ export default function GlobalSearch({
               "border-b border-gray-200 dark:border-white/10",
               isMobile ? "h-screen" : "mt-2 rounded-xl max-h-[80vh]",
               isTablet ? "max-w-xl mx-auto" : "max-w-2xl mx-auto",
-              "z-[9999]"
+              "z-[9999]",
+              resultsContainerClassName
             )}
           >
             {/* Search Header */}
@@ -366,18 +390,22 @@ export default function GlobalSearch({
               </div>
             </div>
 
-            {/* Category Filters */}
+            {/* Category Filters - Enhanced with horizontal scroll and auto-scroll */}
             <div
               className={cn(
                 "flex gap-2 overflow-x-auto scrollbar-hide",
                 "border-b border-gray-200 dark:border-white/10",
-                isMobile ? "px-3 pt-2 pb-1" : "px-4 pt-3 pb-2"
+                isMobile ? "px-3 pt-2 pb-1" : "px-4 pt-3 pb-2",
+                "sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl"
               )}
             >
               {searchCategories.map((category) => (
                 <button
                   key={category.value}
-                  onClick={() => setActiveCategory(category.value)}
+                  onClick={(e) => {
+                    setActiveCategory(category.value);
+                    scrollToButton(e.currentTarget);
+                  }}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all",
                     activeCategory === category.value
@@ -391,7 +419,7 @@ export default function GlobalSearch({
               ))}
             </div>
 
-            {/* Search Results */}
+            {/* Search Results - Enhanced with more compact and beautiful layout */}
             <div
               className={cn(
                 "overflow-y-auto",
@@ -464,28 +492,30 @@ export default function GlobalSearch({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.15, delay: index * 0.05 }}
                     >
-                      <button
-                        onClick={() => handleResultClick(result.slug)}
+                      <Link
+                        href={`/article/${result.slug}`}
+                        prefetch={true}
+                        onClick={() => handleSearchClose()}
                         className={cn(
-                          "w-full text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors",
-                          isMobile ? "p-3" : "p-4",
+                          "block w-full text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors",
+                          isMobile ? "p-2.5" : "p-3",
                           selectedIndex === index &&
                             "bg-gray-50 dark:bg-white/5"
                         )}
                       >
-                        <div className="flex items-start gap-4">
+                        <div className="flex items-start gap-3">
                           {result.coverImage && (
                             <div
                               className={cn(
                                 "rounded-lg overflow-hidden flex-shrink-0",
-                                isMobile ? "w-12 h-12" : "w-16 h-16"
+                                isMobile ? "w-10 h-10" : "w-12 h-12"
                               )}
                             >
                               <Image
                                 src={result.coverImage}
                                 alt={result.title}
-                                width={isMobile ? 48 : 64}
-                                height={isMobile ? 48 : 64}
+                                width={isMobile ? 40 : 48}
+                                height={isMobile ? 40 : 48}
                                 className="w-full h-full object-cover"
                               />
                             </div>
@@ -493,7 +523,7 @@ export default function GlobalSearch({
                           <div className="flex-1 min-w-0">
                             <h3
                               className={cn(
-                                "font-medium text-gray-900 dark:text-gray-100 mb-1 truncate",
+                                "font-medium text-gray-900 dark:text-gray-100 mb-0.5 truncate",
                                 isMobile ? "text-sm" : "text-base"
                               )}
                             >
@@ -501,22 +531,22 @@ export default function GlobalSearch({
                             </h3>
                             <p
                               className={cn(
-                                "text-gray-500 dark:text-gray-400 line-clamp-2",
+                                "text-gray-500 dark:text-gray-400 line-clamp-1",
                                 isMobile ? "text-xs" : "text-sm"
                               )}
                             >
                               {result.brief}
                             </p>
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                               {result.tags?.slice(0, 2).map((tag) => (
                                 <span
                                   key={tag.slug}
-                                  className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary"
+                                  className="px-1.5 py-0.5 text-[10px] rounded-full bg-primary/10 text-primary"
                                 >
                                   {tag.name}
                                 </span>
                               ))}
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400">
                                 {new Date(
                                   result.publishedAt
                                 ).toLocaleDateString()}
@@ -524,7 +554,7 @@ export default function GlobalSearch({
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </Link>
                     </motion.li>
                   ))}
                 </ul>

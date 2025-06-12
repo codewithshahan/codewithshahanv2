@@ -1,124 +1,154 @@
 "use client";
 
-import { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useState } from "react";
+import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useTheme } from "next-themes";
-import { useScroll } from "@/contexts/ScrollContext";
+import { cn } from "@/lib/utils";
 
 interface ScrollIndicatorProps {
   sections?: string[];
+  color?: string;
 }
 
-export const ScrollIndicator = ({ sections = [] }: ScrollIndicatorProps) => {
-  const { currentSection, setSections } = useScroll();
+// Navigation items with their paths and colors
+const navigationItems = [
+  { path: "/", title: "Home", color: "#34c759" },
+  { path: "/article", title: "Articles", color: "#007aff" },
+  { path: "/store", title: "Store", color: "#ff9500" },
+  { path: "/category", title: "Categories", color: "#ff3b30" },
+  { path: "/author", title: "Author", color: "#af52de" },
+  { path: "/contact", title: "Contact", color: "#ff2d55" },
+];
+
+export function ScrollIndicator({
+  sections = [],
+  color,
+}: ScrollIndicatorProps) {
+  const { scrollYProgress } = useScroll();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const [currentSection, setCurrentSection] = useState(0);
 
-  // Dynamic colors based on section
-  const getSectionColor = (section: string) => {
-    const colors = {
-      hero: isDark ? "#60A5FA" : "#2563EB", // Blue
-      "featured-articles": isDark ? "#34D399" : "#059669", // Green
-      categories: isDark ? "#F472B6" : "#DB2777", // Pink
-      "ai-insight": isDark ? "#A78BFA" : "#7C3AED", // Purple
-      newsletter: isDark ? "#FBBF24" : "#D97706", // Yellow
-      products: isDark ? "#F87171" : "#DC2626", // Red
-      // Add more section colors as needed
-      "store-products": isDark ? "#F87171" : "#DC2626", // Red
-      "store-categories": isDark ? "#F472B6" : "#DB2777", // Pink
-      "author-bio": isDark ? "#60A5FA" : "#2563EB", // Blue
-      "author-articles": isDark ? "#34D399" : "#059669", // Green
-      "article-content": isDark ? "#A78BFA" : "#7C3AED", // Purple
-      "article-comments": isDark ? "#FBBF24" : "#D97706", // Yellow
-    };
-    return (
-      colors[section as keyof typeof colors] || (isDark ? "#FFFFFF" : "#000000")
-    );
+  // Smooth spring animation for scroll progress
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
+  });
+
+  // Transform progress to percentage
+  const progress = useTransform(smoothProgress, [0, 1], [0, 100]);
+
+  // Update current section based on scroll position
+  useEffect(() => {
+    const unsubscribe = progress.onChange((value) => {
+      const sectionSize = 100 / (sections.length || navigationItems.length);
+      const newSection = Math.floor(value / sectionSize);
+      setCurrentSection(newSection);
+    });
+
+    return () => unsubscribe();
+  }, [progress, sections.length]);
+
+  // Calculate dot state with color transitions
+  const getDotState = (index: number) => {
+    const totalSections = sections.length || navigationItems.length;
+    const sectionProgress = progress.get();
+    const sectionSize = 100 / totalSections;
+    const sectionProgressNormalized =
+      (sectionProgress % sectionSize) / sectionSize;
+
+    const isActive = index <= currentSection;
+    const isCurrent = index === currentSection;
+    const isNext = index === currentSection + 1;
+    const isPrev = index === currentSection - 1;
+
+    const navItem = navigationItems[index];
+    const currentColor = navigationItems[currentSection]?.color;
+    const nextColor = navigationItems[currentSection + 1]?.color;
+    const prevColor = navigationItems[currentSection - 1]?.color;
+
+    let dotColor = navItem?.color || "currentColor";
+    let scale = 1;
+    let opacity = 0.3;
+    let glow = "none";
+
+    if (isCurrent) {
+      // Current dot: Blend between current and next color
+      const blend = sectionProgressNormalized;
+      dotColor = `color-mix(in srgb, ${currentColor} ${(1 - blend) * 100}%, ${
+        nextColor || currentColor
+      } ${blend * 100}%)`;
+      scale = 1.3;
+      opacity = 1;
+      glow = `0 0 8px ${currentColor}80`;
+    } else if (isNext) {
+      // Next dot: Fade in next color
+      dotColor = nextColor || currentColor;
+      scale = 1.1 + sectionProgressNormalized * 0.2;
+      opacity = 0.7 + sectionProgressNormalized * 0.3;
+      glow = `0 0 4px ${nextColor}40`;
+    } else if (isPrev) {
+      // Previous dot: Fade out previous color
+      dotColor = prevColor || currentColor;
+      scale = 1.1 + (1 - sectionProgressNormalized) * 0.2;
+      opacity = 0.7 + (1 - sectionProgressNormalized) * 0.3;
+      glow = `0 0 4px ${prevColor}40`;
+    } else if (isActive) {
+      // Active but not current: Use section's own color
+      dotColor = navItem?.color;
+      scale = 1.1;
+      opacity = 0.5;
+    }
+
+    return { color: dotColor, scale, opacity, glow };
   };
 
-  useEffect(() => {
-    if (sections.length > 0) {
-      setSections(sections);
-    }
-  }, [sections, setSections]);
-
   return (
-    <motion.div
-      className="flex items-center gap-2 p-1.5 backdrop-blur-md bg-background/40 rounded-full border border-border/30 shadow-lg"
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
-      {sections.map((section) => (
-        <motion.button
-          key={section}
-          className="relative"
-          whileHover={{ scale: 1.2 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            const element = document.getElementById(section);
-            if (element) {
-              element.scrollIntoView({ behavior: "smooth" });
-            }
-          }}
-          aria-label={`Scroll to ${section}`}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                currentSection === section ? "scale-125" : "scale-100"
-              }`}
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: sections.length || navigationItems.length }).map(
+        (_, index) => {
+          const { color, scale, opacity, glow } = getDotState(index);
+
+          return (
+            <motion.button
+              key={index}
+              onClick={() => {
+                const totalHeight =
+                  document.documentElement.scrollHeight - window.innerHeight;
+                const targetScroll =
+                  (totalHeight * index) /
+                  (sections.length || navigationItems.length);
+                window.scrollTo({
+                  top: targetScroll,
+                  behavior: "smooth",
+                });
+              }}
+              className={cn(
+                "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                "hover:scale-110 active:scale-95",
+                "backdrop-blur-sm"
+              )}
               style={{
-                backgroundColor:
-                  currentSection === section
-                    ? getSectionColor(section)
-                    : isDark
-                    ? "rgba(255, 255, 255, 0.2)"
-                    : "rgba(0, 0, 0, 0.2)",
+                backgroundColor: color,
+                transform: `scale(${scale})`,
+                opacity,
+                boxShadow: glow,
               }}
               whileHover={{
-                backgroundColor: getSectionColor(section),
                 scale: 1.2,
+                boxShadow: `0 0 12px ${color}80`,
               }}
-              animate={{
-                scale: currentSection === section ? 1.25 : 1,
-                backgroundColor:
-                  currentSection === section
-                    ? getSectionColor(section)
-                    : isDark
-                    ? "rgba(255, 255, 255, 0.2)"
-                    : "rgba(0, 0, 0, 0.2)",
-              }}
+              whileTap={{ scale: 0.9 }}
               transition={{
                 type: "spring",
-                stiffness: 400,
-                damping: 17,
+                stiffness: 300,
+                damping: 20,
               }}
             />
-          </AnimatePresence>
-
-          {/* Glow effect for active section */}
-          {currentSection === section && (
-            <motion.div
-              className="absolute inset-0 rounded-full"
-              style={{
-                backgroundColor: getSectionColor(section),
-                filter: "blur(8px)",
-                opacity: 0.5,
-              }}
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          )}
-        </motion.button>
-      ))}
-    </motion.div>
+          );
+        }
+      )}
+    </div>
   );
-};
+}

@@ -54,17 +54,6 @@ const NextGenComments: React.FC<NextGenCommentsProps> = ({ articleId }) => {
     setIsExpanded((prev) => !prev);
   };
 
-  // If not mounted yet, render a simple loading state to avoid hydration issues
-  if (!isMounted) {
-    return (
-      <div className="w-full py-4 mt-4">
-        <div className="animate-pulse">
-          <div className="h-12 bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div ref={commentsWrapperRef} className="w-full mt-8 perspective-1000">
       {/* Floating Comments Button when collapsed */}

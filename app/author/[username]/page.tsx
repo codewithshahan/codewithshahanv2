@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { fetchAuthorByUsername } from "@/services/authorService";
 import AuthorPageClient from "./AuthorPageClient";
+import { Suspense } from "react";
+import AuthorSkeleton from "./AuthorSkeleton";
 
 // Server component for metadata generation
 export async function generateMetadata({
@@ -40,20 +42,9 @@ export default async function AuthorPage({
 }: {
   params: { username: string };
 }) {
-  const author = await fetchAuthorByUsername(params.username);
-
-  if (!author) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">Author Not Found</h1>
-          <p className="text-muted-foreground">
-            The requested author could not be found.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return <AuthorPageClient params={{ username: params.username }} />;
+  return (
+    <Suspense fallback={<AuthorSkeleton />}>
+      <AuthorPageClient params={{ username: params.username }} />
+    </Suspense>
+  );
 }
