@@ -7,7 +7,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -17,19 +17,15 @@ import {
   Tag,
   Search,
   ShoppingBag,
-  Bell,
   RefreshCw,
-  AlertTriangle,
   ChevronRight,
   X,
   ArrowRight,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import GlobalSearch from "@/components/search/GlobalSearch";
 import {
+  fetchAndCacheAllArticles,
   getTrendingArticles,
   getLatestArticles,
   getArticleCategories,
@@ -41,7 +37,7 @@ import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import FloatingGumroadCard from "@/components/category/FloatingGumroadCard";
 import { FloatingWindow } from "@/components/category/FloatingWindow";
 
-// 1. Premium ArticleTitle: minimal, Apple-style underline accent, Inter font, no pill background
+// ArticleTitle component
 const ArticleTitle: React.FC<{ title: string; className?: string }> = ({
   title,
   className = "",
@@ -58,7 +54,7 @@ const ArticleTitle: React.FC<{ title: string; className?: string }> = ({
   </span>
 );
 
-// 2. Premium SectionHeader: minimal underline/left border, Inter font, no pill
+// SectionHeader component
 const SectionHeader: React.FC<{
   icon: React.ReactNode;
   title: string;
@@ -85,7 +81,6 @@ const SectionHeader: React.FC<{
         style={{ fontFamily: "Inter, sans-serif" }}
       >
         {title}
-        {/* Minimal underline accent for section title */}
         <span className="block w-full h-0.5 mt-0.5 bg-gradient-to-r from-primary/60 to-accent/60 rounded-full opacity-70 group-hover:opacity-100 transition-all duration-200" />
       </span>
     </span>
@@ -101,9 +96,15 @@ const SectionHeader: React.FC<{
   </div>
 );
 
-// Add this new component for the category selector
+// CategorySelector component
 const CategorySelector: React.FC<{
-  categories: { id: string; name: string; slug: string; count: number }[];
+  categories: {
+    id: string;
+    name: string;
+    slug: string;
+    count: number;
+    color?: string;
+  }[];
   selectedCategory: string;
   onSelect: (slug: string) => void;
   getCategoryColor: (categoryName: string) => string;
@@ -156,25 +157,17 @@ const CategorySelector: React.FC<{
 );
 
 export default function RightSidebar() {
-  // Theme-related state
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-
-  // References for elements and scroll behavior
   const sidebarRef = useRef<HTMLDivElement>(null);
   const trendingRef = useRef<HTMLDivElement>(null);
   const latestRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
   const gumroadRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<number>(0);
-
-  // Check if elements are in view
-  const trendingInView = useInView(trendingRef, { once: true });
-  const latestInView = useInView(latestRef, { once: true });
-  const categoriesInView = useInView(categoriesRef, { once: true });
-  const gumroadInView = useInView(gumroadRef, { once: true });
 
   // State
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -198,7 +191,6 @@ export default function RightSidebar() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchActive, setSearchActive] = useState(false);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [showAllLatest, setShowAllLatest] = useState(false);
   const [latestVisibleCount, setLatestVisibleCount] = useState(6);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -214,7 +206,7 @@ export default function RightSidebar() {
   const [productModalProduct, setProductModalProduct] =
     useState<GumroadProduct | null>(null);
 
-  // Move getArticlesForCategory above filteredArticles
+  // Category article getter
   const getArticlesForCategory = useCallback(
     (categorySlug: string) => {
       return allHashnodeArticles.filter((article) =>
@@ -254,27 +246,6 @@ export default function RightSidebar() {
   }, [searchQuery, allArticles]);
 
   // Debounced fetch function to prevent constant API calls
-  const debouncedFetch = useCallback((force = false) => {
-    // Clear any existing timeout
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
-
-    // Check if we need to fetch based on time
-    const now = Date.now();
-    const minTimeBetweenFetches = 30000; // 30 seconds minimum between fetches
-
-    if (!force && now - lastFetchRef.current < minTimeBetweenFetches) {
-      console.log("[RightSidebar] Skipping fetch, too soon since last fetch");
-      return;
-    }
-
-    fetchTimeoutRef.current = setTimeout(() => {
-      fetchSidebarData(force);
-    }, 300);
-  }, []);
-
-  // Enhanced error handling - add more robust fetch with automatic retry
   const fetchSidebarData = useCallback(
     async (force = false): Promise<void> => {
       if (apiCallInProgress && !force) {
@@ -285,11 +256,12 @@ export default function RightSidebar() {
       setApiCallInProgress(true);
       setArticlesLoading((prev) => !initialLoadComplete || prev);
       try {
-        const [trending, latest, cats] = await Promise.all([
+        await fetchAndCacheAllArticles(force);
+        const [trending, latest, cats] = [
           getTrendingArticles(6),
-          getLatestArticles(20),
+          getLatestArticles(20, 1),
           getArticleCategories(),
-        ]);
+        ];
         setTrendingArticles(trending);
         setLatestArticles(latest);
         setCategories(cats.slice(0, 8));
@@ -313,7 +285,25 @@ export default function RightSidebar() {
     [apiCallInProgress, initialLoadComplete]
   );
 
-  // Fetch Gumroad products (fetch all, not just top 2)
+  const debouncedFetch = useCallback(
+    (force = false) => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      const now = Date.now();
+      const minTimeBetweenFetches = 30000;
+      if (!force && now - lastFetchRef.current < minTimeBetweenFetches) {
+        console.log("[RightSidebar] Skipping fetch, too soon since last fetch");
+        return;
+      }
+      fetchTimeoutRef.current = setTimeout(() => {
+        fetchSidebarData(force);
+      }, 300);
+    },
+    [fetchSidebarData]
+  );
+
+  // Fetch Gumroad products
   const fetchGumroadProducts = useCallback(
     async (force = false): Promise<void> => {
       if (apiCallInProgress && !force) return;
@@ -324,8 +314,7 @@ export default function RightSidebar() {
       }
       setGumroadError(null);
       try {
-        // Fetch all products (pass a high number or use a dedicated all-products function)
-        const products = await getTopProducts(50); // adjust as needed for your API
+        const products = await getTopProducts(50);
         setGumroadProducts(products);
       } catch (error) {
         console.error("Error fetching Gumroad products:", error);
@@ -344,15 +333,13 @@ export default function RightSidebar() {
   // Manual refresh
   const handleRefresh = () => {
     if (apiCallInProgress) return;
-
     setRetryCount(0);
     debouncedFetch(true);
     fetchGumroadProducts(true);
   };
 
-  // Initialize data and set up scroll handling
+  // Initial data fetch and scroll handling
   useEffect(() => {
-    // Initial data fetch with a slight delay to prevent layout thrashing
     const initialFetchTimeout = setTimeout(() => {
       debouncedFetch();
       fetchGumroadProducts();
@@ -361,24 +348,19 @@ export default function RightSidebar() {
     const handleScroll = () => {
       if (!sidebarRef.current) return;
       setScrollPosition(window.scrollY);
-
-      // Check if we should enable compact mode based on viewport height
       const windowHeight = window.innerHeight;
       setCompactMode(windowHeight < 800);
     };
 
-    // Set up scroll listener
     window.addEventListener("scroll", handleScroll);
-    // Initial check for compact mode
     handleScroll();
 
-    // Set up refresh interval for long sessions
     const refreshInterval = setInterval(() => {
       if (document.visibilityState === "visible") {
         console.log("[RightSidebar] Auto-refreshing sidebar data");
         debouncedFetch();
       }
-    }, 5 * 60 * 1000); // Refresh every 5 minutes if page is visible
+    }, 5 * 60 * 1000);
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
@@ -390,7 +372,7 @@ export default function RightSidebar() {
     };
   }, [debouncedFetch, fetchGumroadProducts]);
 
-  // Pre-render skeleton placeholders for a more stable UI
+  // Pre-render skeleton placeholders
   const renderArticleSkeleton = (count = 3) => (
     <div className="space-y-2 animate-pulse">
       {Array.from({ length: count }).map((_, i) => (
@@ -405,31 +387,24 @@ export default function RightSidebar() {
     </div>
   );
 
-  // Determine if there are any errors
-  const hasErrors = articlesError || gumroadError;
-
-  // Add debug logging for articles
-  console.log("[RightSidebar] Trending articles:", trendingArticles);
-  console.log("[RightSidebar] Latest articles:", latestArticles);
-
-  // Add function to get category color
+  // Category color getter
   const getCategoryColor = useCallback((categoryName: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       JavaScript: "from-blue-500 to-cyan-500",
       "Clean Code": "from-green-500 to-emerald-500",
       Backend: "from-purple-500 to-pink-500",
       Frontend: "from-orange-500 to-red-500",
       default: "from-primary to-accent",
     };
-    return colors[categoryName as keyof typeof colors] || colors.default;
+    return colors[categoryName] || colors.default;
   }, []);
 
-  // Load data from cache
+  // Load all articles for search/category modal
   useEffect(() => {
     async function fetchAllArticles() {
       try {
-        // getTrendingArticles and getLatestArticles may be paginated, so fetch a large number or use a dedicated all-articles function if available
-        const all = await getLatestArticles(100); // adjust 100 to a higher number if needed for your cache
+        await fetchAndCacheAllArticles();
+        const all = getLatestArticles(100, 1);
         setAllHashnodeArticles(all);
       } catch (e) {
         setAllHashnodeArticles([]);
@@ -438,7 +413,7 @@ export default function RightSidebar() {
     fetchAllArticles();
   }, []);
 
-  // When categories are loaded, if selectedCategory is empty or invalid, set it to the first category's slug
+  // When categories are loaded, set selectedCategory if needed
   useEffect(() => {
     if (
       categories.length > 0 &&
@@ -447,17 +422,13 @@ export default function RightSidebar() {
     ) {
       setSelectedCategory(categories[0].slug);
     }
-    // Only run when categories or selectedCategory change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories, selectedCategory]);
 
-  // Handler to open product modal
+  // Product modal handlers
   const handleProductCardClick = (product: GumroadProduct) => {
     setProductModalProduct(product);
     setProductModalOpen(true);
   };
-
-  // Handler to close product modal
   const handleProductModalClose = () => {
     setProductModalOpen(false);
     setProductModalProduct(null);
@@ -467,9 +438,7 @@ export default function RightSidebar() {
   const publishedDates: Record<string, number> = {
     "clean code zero to one": new Date("2025-12-25").getTime(),
     "skills to become a backend developer": new Date("2024-09-01").getTime(),
-    // Add more as needed
   };
-  // Sort all products by published date (hardcoded or fallback)
   const sortedProducts = gumroadProducts.slice().sort((a, b) => {
     const getDate = (p: any) => {
       const name = p.name?.toLowerCase() || "";
@@ -482,20 +451,17 @@ export default function RightSidebar() {
     };
     return getDate(b) - getDate(a);
   });
-  // Find the latest product (top 1)
   const latestProductId = sortedProducts[0]?.id;
 
   return (
     <>
-      {/* Modern, minimal, premium sidebar layout */}
       <motion.div
         ref={sidebarRef}
         className={cn(
-          "bg-card/60 dark:bg-card/30 backdrop-blur-xl",
-          "border-l dark:border-white/5 border-black/5",
           "h-full w-full max-w-full overflow-x-hidden overflow-y-auto",
-          "px-4 py-4 flex flex-col gap-6",
-          "scrollbar-thin scrollbar-thumb-accent/40 scrollbar-track-background/20"
+          "px-2 py-0 flex flex-col gap-4",
+          "scrollbar-thin scrollbar-thumb-accent/40 scrollbar-track-background/20",
+          "font-sans"
         )}
         style={{
           position: "sticky",
@@ -506,10 +472,10 @@ export default function RightSidebar() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Quick Search Bar (restored, modernized) */}
+        {/* Quick Search Bar */}
         <div className="relative mb-4">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 dark:bg-black/20 border border-white/10 dark:border-white/5 shadow-premium backdrop-blur-md">
-            <Search size={14} className="text-gray-500 dark:text-gray-400" />
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white shadow-md dark:bg-[#18181c] dark:shadow-lg transition-colors duration-200">
+            <Search size={16} className="text-gray-500 dark:text-gray-400" />
             <input
               ref={searchInputRef}
               type="text"
@@ -531,103 +497,90 @@ export default function RightSidebar() {
                 }}
                 className="ml-1 text-gray-400 hover:text-primary transition"
                 aria-label="Clear search"
+                type="button"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <X size={16} />
               </button>
             )}
           </div>
-          {/* Animated dropdown for search results */}
-          {searchActive && searchQuery && (
-            <motion.div
-              ref={searchDropdownRef}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.18 }}
-              className="absolute left-0 right-0 mt-2 z-50 bg-background/90 dark:bg-black/90 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-xl p-2 max-h-80 overflow-y-auto flex flex-col gap-1"
-            >
-              {filteredSearchResults.length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-6 select-none">
-                  No articles found
-                </div>
-              ) : (
-                filteredSearchResults.slice(0, 8).map((article) => (
-                  <Link
-                    key={article.id}
-                    href={`/article/${article.slug}`}
-                    className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-primary/10 transition group"
-                    onClick={() => setSearchActive(false)}
-                  >
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800">
-                      {article.coverImage ? (
-                        <Image
-                          src={article.coverImage}
-                          width={40}
-                          height={40}
-                          alt={article.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 opacity-70" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-medium truncate group-hover:text-primary transition-colors font-sans">
-                        {article.title}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {/* TagPill restored */}
-                        {article.tags && article.tags.length > 0 && (
-                          <TagPill
-                            name={article.tags[0].name}
-                            slug={article.tags[0].slug}
-                            color={article.tags[0].color}
-                            className="!text-[10px] !px-2 !py-0.5 !max-w-[90px] md:!max-w-[120px] lg:!max-w-[140px]"
+          <AnimatePresence>
+            {searchActive && searchQuery && (
+              <motion.div
+                ref={searchDropdownRef}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.18 }}
+                className="absolute left-0 right-0 mt-2 z-50 bg-background/90 dark:bg-black/90 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-xl p-2 max-h-80 overflow-y-auto flex flex-col gap-1"
+              >
+                {filteredSearchResults.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-6 select-none">
+                    No articles found
+                  </div>
+                ) : (
+                  filteredSearchResults.slice(0, 8).map((article) => (
+                    <Link
+                      key={article.id}
+                      href={`/article/${article.slug}`}
+                      className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-primary/10 transition group"
+                      onClick={() => setSearchActive(false)}
+                    >
+                      <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800">
+                        {article.coverImage ? (
+                          <Image
+                            src={article.coverImage}
+                            width={40}
+                            height={40}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
                           />
-                        )}
-                        {/* Short date badge: 'Apr 12' or '3d ago' if within 7 days */}
-                        {article.publishedAt && (
-                          <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
-                            {(() => {
-                              const date = new Date(article.publishedAt);
-                              const daysAgo = differenceInDays(
-                                new Date(),
-                                date
-                              );
-                              return daysAgo < 7
-                                ? formatDistanceToNow(date, {
-                                    addSuffix: false,
-                                    includeSeconds: false,
-                                  }).replace("about ", "") + " ago"
-                                : format(date, "MMM d");
-                            })()}
-                          </span>
-                        )}
-                        {/* Reading time, if available */}
-                        {article.readingTime && (
-                          <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
-                            · {article.readingTime} min
-                          </span>
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 opacity-70" />
                         )}
                       </div>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </motion.div>
-          )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-medium truncate group-hover:text-primary transition-colors font-sans">
+                          {article.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {article.tags && article.tags.length > 0 && (
+                            <TagPill
+                              name={article.tags[0]?.name ?? ""}
+                              slug={article.tags[0]?.slug ?? ""}
+                              color={article.tags[0]?.color}
+                              className="!text-[10px] !px-2 !py-0.5 !max-w-[90px] md:!max-w-[120px] lg:!max-w-[140px]"
+                            />
+                          )}
+                          {article.publishedAt && (
+                            <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
+                              {(() => {
+                                const date = new Date(article.publishedAt);
+                                const daysAgo = differenceInDays(
+                                  new Date(),
+                                  date
+                                );
+                                return daysAgo < 7
+                                  ? formatDistanceToNow(date, {
+                                      addSuffix: false,
+                                      includeSeconds: false,
+                                    }).replace("about ", "") + " ago"
+                                  : format(date, "MMM d");
+                              })()}
+                            </span>
+                          )}
+                          {article.readingTime && (
+                            <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
+                              · {article.readingTime} min
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         {/* Trending Section */}
         <section ref={trendingRef}>
@@ -637,86 +590,77 @@ export default function RightSidebar() {
               Trending
             </h3>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {articlesLoading ? (
               renderArticleSkeleton(3)
             ) : trendingArticles.length > 0 ? (
               trendingArticles.slice(0, compactMode ? 3 : 4).map((article) => (
-                <motion.div
+                <motion.a
                   key={article.id}
+                  href={`/article/${article.slug}`}
                   className={cn(
-                    "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10 flex gap-3 items-center px-3 py-2 group transition-all duration-200",
-                    "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10"
+                    "flex gap-2 items-center w-full px-2 py-1.5 group transition-all duration-200",
+                    "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10",
+                    "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
+                    "-mx-2 relative z-10 group-hover:z-20"
                   )}
                   whileHover={{ scale: 1.015, y: -1 }}
+                  style={{ display: "flex" }}
                 >
-                  <Link
-                    href={`/article/${article.slug}`}
-                    className="flex gap-3 items-center w-full"
-                  >
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800 border border-orange-200/30 dark:border-orange-900/30">
-                      {article.coverImage ? (
-                        <Image
-                          src={article.coverImage}
-                          width={40}
-                          height={40}
-                          alt={article.title}
-                          className="w-full h-full object-cover"
+                  <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800 border border-orange-200/30 dark:border-orange-900/30">
+                    {article.coverImage ? (
+                      <Image
+                        src={article.coverImage}
+                        width={36}
+                        height={36}
+                        alt={article.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-orange-400 to-orange-600 opacity-70" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <span className="font-semibold text-sm truncate group-hover:text-primary font-sans">
+                      {article.title}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                      {article.tags && article.tags.length > 0 && (
+                        <TagPill
+                          name={article.tags[0]?.name ?? ""}
+                          slug={article.tags[0]?.slug ?? ""}
+                          color={article.tags[0]?.color}
+                          className="!text-[10px] !px-1 !py-0.5 !max-w-[70px] md:!max-w-[90px] lg:!max-w-[110px]"
                         />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-400 to-orange-600 opacity-70" />
+                      )}
+                      {article.publishedAt && (
+                        <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
+                          {(() => {
+                            const date = new Date(article.publishedAt);
+                            const daysAgo = differenceInDays(new Date(), date);
+                            return daysAgo < 7
+                              ? formatDistanceToNow(date, {
+                                  addSuffix: false,
+                                  includeSeconds: false,
+                                }).replace("about ", "") + " ago"
+                              : format(date, "MMM d");
+                          })()}
+                        </span>
+                      )}
+                      {article.readingTime && (
+                        <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
+                          · {article.readingTime} min
+                        </span>
+                      )}
+                      {typeof article.views !== "undefined" && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto whitespace-nowrap">
+                          <TrendingUp size={10} className="mr-0.5" />
+                          {article.views?.toLocaleString() || "Popular"}
+                        </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <ArticleTitle
-                        title={article.title}
-                        className="!px-2 !py-0.5 !text-xs"
-                      />
-                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        {/* TagPill restored, fits naturally */}
-                        {article.tags && article.tags.length > 0 && (
-                          <TagPill
-                            name={article.tags[0].name}
-                            slug={article.tags[0].slug}
-                            color={article.tags[0].color}
-                            className="!text-[10px] !px-1 !py-0.5 !max-w-[70px] md:!max-w-[90px] lg:!max-w-[110px]"
-                          />
-                        )}
-                        {/* Short date badge: 'Apr 12' or '3d ago' if within 7 days */}
-                        {article.publishedAt && (
-                          <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
-                            {(() => {
-                              const date = new Date(article.publishedAt);
-                              const daysAgo = differenceInDays(
-                                new Date(),
-                                date
-                              );
-                              return daysAgo < 7
-                                ? formatDistanceToNow(date, {
-                                    addSuffix: false,
-                                    includeSeconds: false,
-                                  }).replace("about ", "") + " ago"
-                                : format(date, "MMM d");
-                            })()}
-                          </span>
-                        )}
-                        {/* Reading time, if available */}
-                        {article.readingTime && (
-                          <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
-                            · {article.readingTime} min
-                          </span>
-                        )}
-                        {/* Views/Popularity (Trending only) */}
-                        {typeof article.views !== "undefined" && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto whitespace-nowrap">
-                            <TrendingUp size={10} className="mr-0.5" />
-                            {article.views?.toLocaleString() || "Popular"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
+                  </div>
+                </motion.a>
               ))
             ) : (
               <div className="text-center py-4 text-xs text-gray-500 bg-gradient-to-r from-orange-50/60 to-white/80 dark:from-orange-900/20 dark:to-black/30 rounded-xl shadow-inner border border-orange-200/40 dark:border-orange-900/30 flex flex-col items-center gap-2">
@@ -747,7 +691,7 @@ export default function RightSidebar() {
               </button>
             )}
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {articlesLoading ? (
               renderArticleSkeleton(2)
             ) : latestArticles.length > 0 ? (
@@ -755,21 +699,22 @@ export default function RightSidebar() {
                 <motion.div
                   key={article.id}
                   className={cn(
-                    "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10 flex gap-3 items-center px-3 py-2 group transition-all duration-200",
-                    "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10"
+                    "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10 flex gap-2 items-center px-2 py-1.5 group transition-all duration-200",
+                    "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
+                    "-mx-2 relative z-10 group-hover:z-20"
                   )}
                   whileHover={{ scale: 1.015, y: -1 }}
                 >
                   <Link
                     href={`/article/${article.slug}`}
-                    className="flex gap-3 items-center w-full"
+                    className="flex gap-2 items-center w-full"
                   >
-                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800 border border-blue-200/30 dark:border-blue-900/30">
+                    <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800 border border-blue-200/30 dark:border-blue-900/30">
                       {article.coverImage ? (
                         <Image
                           src={article.coverImage}
-                          width={40}
-                          height={40}
+                          width={36}
+                          height={36}
                           alt={article.title}
                           className="w-full h-full object-cover"
                         />
@@ -782,17 +727,15 @@ export default function RightSidebar() {
                         title={article.title}
                         className="!px-2 !py-0.5 !text-xs"
                       />
-                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                        {/* TagPill restored, fits naturally */}
+                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                         {article.tags && article.tags.length > 0 && (
                           <TagPill
-                            name={article.tags[0].name}
-                            slug={article.tags[0].slug}
-                            color={article.tags[0].color}
+                            name={article.tags[0]?.name ?? ""}
+                            slug={article.tags[0]?.slug ?? ""}
+                            color={article.tags[0]?.color}
                             className="!text-[10px] !px-1 !py-0.5 !max-w-[70px] md:!max-w-[90px] lg:!max-w-[110px]"
                           />
                         )}
-                        {/* Short date badge: 'Apr 12' or '3d ago' if within 7 days */}
                         {article.publishedAt && (
                           <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
                             {(() => {
@@ -810,7 +753,6 @@ export default function RightSidebar() {
                             })()}
                           </span>
                         )}
-                        {/* Reading time, if available */}
                         {article.readingTime && (
                           <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
                             · {article.readingTime} min
@@ -840,8 +782,6 @@ export default function RightSidebar() {
               </h3>
             </div>
           </div>
-
-          {/* Modern Category Selector */}
           <CategorySelector
             categories={categories}
             selectedCategory={selectedCategory}
@@ -851,8 +791,6 @@ export default function RightSidebar() {
             setSelectedCategoryForModal={setSelectedCategoryForModal}
             setShowCategoryModal={setShowCategoryModal}
           />
-
-          {/* Articles filtered by category */}
           <div className="flex flex-col gap-2">
             {articlesLoading ? (
               renderArticleSkeleton(2)
@@ -865,8 +803,9 @@ export default function RightSidebar() {
                       key={article.id}
                       className={cn(
                         "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10",
-                        "px-3 py-2 group transition-all duration-200",
-                        "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10"
+                        "px-2 py-1.5 group transition-all duration-200",
+                        "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
+                        "-mx-2 relative z-10 group-hover:z-20"
                       )}
                       whileHover={{ scale: 1.015, y: -1 }}
                     >
@@ -875,7 +814,6 @@ export default function RightSidebar() {
                         className="flex flex-col gap-1"
                       >
                         <div className="flex items-start gap-2">
-                          {/* Category indicator dot */}
                           <div
                             className={cn(
                               "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
@@ -884,17 +822,12 @@ export default function RightSidebar() {
                               )}`
                             )}
                           />
-
-                          {/* Article content */}
                           <div className="flex-1 min-w-0">
                             <ArticleTitle
                               title={article.title}
                               className="!px-0 !py-0 !text-xs line-clamp-2"
                             />
-
-                            {/* Meta info in a single line */}
                             <div className="flex items-center gap-2 mt-1">
-                              {/* Short date badge */}
                               {article.publishedAt && (
                                 <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
                                   {(() => {
@@ -912,19 +845,14 @@ export default function RightSidebar() {
                                   })()}
                                 </span>
                               )}
-
-                              {/* Reading time */}
                               {article.readingTime && (
                                 <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
                                   · {article.readingTime} min
                                 </span>
                               )}
-
-                              {/* Trending indicator if applicable */}
                               {article.views && article.views > 1000 && (
                                 <span className="text-[10px] text-orange-500 font-medium flex items-center gap-0.5 ml-auto">
-                                  <TrendingUp size={10} />
-                                  Trending
+                                  <TrendingUp size={10} /> Trending
                                 </span>
                               )}
                             </div>
@@ -933,7 +861,6 @@ export default function RightSidebar() {
                       </Link>
                     </motion.div>
                   ))}
-                {/* Dynamic, compact View All button after search result */}
                 <motion.button
                   onClick={() => {
                     setSelectedCategoryForModal({
@@ -980,14 +907,12 @@ export default function RightSidebar() {
               Products
             </h3>
           </div>
-          {/* Minimal, premium Apple-style product previews */}
           <div className="w-full pb-2">
             {gumroadLoading ? (
               renderArticleSkeleton(2)
             ) : gumroadProducts.length > 0 ? (
               <div className="w-full flex flex-col gap-5">
                 {sortedProducts.map((product, index) => {
-                  // Determine type badge
                   let typeBadge = null;
                   const name = product.name ? product.name.toLowerCase() : "";
                   if (name.includes("clean code zero to one")) {
@@ -1000,9 +925,7 @@ export default function RightSidebar() {
                   ) {
                     typeBadge = "Roadmap";
                   }
-                  // Determine if product is the latest (show 'New' badge)
                   const isNew = product.id === latestProductId;
-                  // Ellipsize product name if longer than 6 words
                   const productNameWords = product.name.split(" ");
                   const displayName =
                     productNameWords.length > 6
@@ -1017,13 +940,11 @@ export default function RightSidebar() {
                       aria-label={`View details for ${product.name}`}
                       style={{ minHeight: 80 }}
                     >
-                      {/* MacOS-style window dots, now on right */}
                       <div className="absolute top-2 right-4 flex items-center gap-1 z-10">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 shadow-sm" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors" />
                       </div>
-                      {/* New badge - top left, flush to edge */}
                       {isNew && (
                         <span
                           className="absolute top-0 left-0 px-1.5 py-0.5 rounded-br-lg text-[9px] font-semibold bg-green-500 text-white shadow select-none z-20 animate-pulse"
@@ -1032,7 +953,6 @@ export default function RightSidebar() {
                           New
                         </span>
                       )}
-                      {/* Product image: larger square, fills more of the card */}
                       <div className="flex-shrink-0 aspect-square h-20 w-20 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 shadow border border-white/10 mr-3 flex items-center justify-center relative">
                         <Image
                           src={
@@ -1046,29 +966,24 @@ export default function RightSidebar() {
                           priority
                         />
                       </div>
-                      {/* Product info stack */}
                       <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                        {/* Product name, smaller, left-aligned, ellipsized if >6 words */}
                         <div
                           className="text-xs font-semibold text-foreground leading-tight text-left truncate"
                           title={product.name}
                         >
                           {displayName}
                         </div>
-                        {/* Meta row: price only */}
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-primary font-bold text-[15px]">
                             {product.formatted_price}
                           </span>
                         </div>
-                        {/* Rating above badge, smaller and premium style */}
                         <div className="flex items-center gap-1 mt-1 mb-0.5">
                           <span className="flex items-center gap-0.5 text-yellow-500 text-[10px] font-semibold bg-white/70 dark:bg-black/40 px-1.5 py-0.5 rounded-full shadow border border-yellow-200/40">
                             <Star className="w-2.5 h-2.5" /> 5.0
                           </span>
                         </div>
                       </div>
-                      {/* Type badge in bottom right of card container */}
                       {typeBadge && (
                         <span
                           className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/90 text-white shadow-md select-none z-20 border border-white/20"
@@ -1077,7 +992,6 @@ export default function RightSidebar() {
                           {typeBadge}
                         </span>
                       )}
-                      {/* Arrow icon, right-aligned, appears on hover */}
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-3 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">
                         <ArrowRight className="w-4 h-4" />
                       </span>
@@ -1092,7 +1006,6 @@ export default function RightSidebar() {
             )}
           </div>
         </section>
-        {/* Activity Indicator */}
         <div className="mt-auto pt-2 border-t border-white/10 flex items-center justify-between">
           <div className="flex items-center">
             <div
@@ -1233,7 +1146,6 @@ export default function RightSidebar() {
                           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                             {article.brief}
                           </p>
-                          {/* Tags */}
                           {article.tags && article.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-auto">
                               {article.tags.slice(0, 2).map((tag) => (
@@ -1252,7 +1164,6 @@ export default function RightSidebar() {
                     </motion.div>
                   ))}
               </div>
-              {/* Load More button */}
               {latestVisibleCount < latestArticles.length && (
                 <div className="flex justify-center p-4 border-t border-white/10">
                   <motion.button
@@ -1295,7 +1206,6 @@ export default function RightSidebar() {
               tabIndex={0}
               aria-label={`${selectedCategoryForModal.name} Articles`}
             >
-              {/* MacOS-style header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-background/80 backdrop-blur-md">
                 <div className="flex items-center gap-2">
                   <div
@@ -1331,7 +1241,6 @@ export default function RightSidebar() {
                   <X size={16} />
                 </button>
               </div>
-              {/* Article cards grid */}
               <div className="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {getArticlesForCategory(selectedCategoryForModal.slug).map(
                   (article, i) => (
@@ -1391,7 +1300,6 @@ export default function RightSidebar() {
                           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                             {article.brief}
                           </p>
-                          {/* Tags */}
                           {article.tags && article.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-auto">
                               {article.tags.slice(0, 2).map((tag) => (
