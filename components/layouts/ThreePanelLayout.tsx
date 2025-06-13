@@ -583,26 +583,45 @@ export default function ThreePanelLayout({ children }: ThreePanelLayoutProps) {
             className={cn(
               "flex flex-col",
               "fixed right-0 top-[35vh]",
-              "rounded-l-2xl",
+              "rounded-l-[22px]",
               "transition-all duration-500",
               getPanelBackground(isDark),
               getPanelBorder(isDark),
-              getZIndex.rightPanel
+              getZIndex.rightPanel,
+              "shadow-[0_8px_32px_0_rgba(0,0,0,0.12)]",
+              "backdrop-blur-[18px]",
+              "font-[SF Pro Display, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif]"
             )}
             style={{
               boxShadow: getPanelShadow(isDark, isUtilityPanelExpanded),
+              fontFamily:
+                "SF Pro Display, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+              background: isDark
+                ? "rgba(28,28,30,0.82)"
+                : "rgba(255,255,255,0.82)",
             }}
           >
             {/* Enhanced Utility Panel Header */}
-            <div className="flex-none p-2 flex items-center justify-between">
+            <div
+              className="flex-none px-4 py-2 flex items-center justify-between border-b border-black/10 dark:border-white/10 bg-white/70 dark:bg-[#18181c]/70 rounded-tl-2xl rounded-tr-2xl backdrop-blur-xl"
+              style={{
+                fontFamily:
+                  'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                minHeight: 44,
+                boxShadow: isDark
+                  ? "0 1px 0 0 rgba(255,255,255,0.04)"
+                  : "0 1px 0 0 rgba(0,0,0,0.04)",
+              }}
+            >
               {/* macOS Window Controls with enhanced functionality */}
               <div className="flex items-center gap-1.5">
                 <motion.button
                   onClick={() => setIsPanelVisible(false)}
-                  className="w-3 h-3 rounded-full bg-[#ff5f57] transition-all duration-300"
+                  className="w-3 h-3 rounded-full bg-[#ff5f57] transition-all duration-300 border border-black/10 dark:border-white/10 shadow-sm"
                   whileHover={{ scale: 1.2, backgroundColor: "#ff5f57" }}
                   whileTap={{ scale: 0.9 }}
                   aria-label="Close panel"
+                  tabIndex={0}
                 />
                 <motion.button
                   onClick={() => {
@@ -611,43 +630,58 @@ export default function ThreePanelLayout({ children }: ThreePanelLayoutProps) {
                       setIsUtilityPanelExpanded(false);
                     }
                   }}
-                  className="w-3 h-3 rounded-full bg-[#febc2e] transition-all duration-300"
+                  className="w-3 h-3 rounded-full bg-[#febc2e] transition-all duration-300 border border-black/10 dark:border-white/10 shadow-sm"
                   whileHover={{ scale: 1.2, backgroundColor: "#febc2e" }}
                   whileTap={{ scale: 0.9 }}
                   aria-label="Minimize panel"
+                  tabIndex={0}
                 />
                 <motion.button
                   onClick={() => {
                     setIsUtilityPanelExpanded(!isUtilityPanelExpanded);
                     setIsUtilityPanelMinimized(false);
                   }}
-                  className="w-3 h-3 rounded-full bg-[#28c840] transition-all duration-300"
+                  className="w-3 h-3 rounded-full bg-[#28c840] transition-all duration-300 border border-black/10 dark:border-white/10 shadow-sm"
                   whileHover={{ scale: 1.2, backgroundColor: "#28c840" }}
                   whileTap={{ scale: 0.9 }}
                   aria-label="Maximize panel"
+                  tabIndex={0}
                 />
               </div>
 
-              {/* Panel Title with fade animation */}
+              {/* Panel Title with native Apple/macOS UI/UX */}
               <AnimatePresence mode="wait">
                 {isUtilityPanelExpanded && !isUtilityPanelMinimized && (
-                  <motion.h3
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className={cn(
-                      "text-sm font-medium",
-                      isDark ? "text-white/90" : "text-gray-900"
-                    )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute left-0 right-0 flex justify-center pointer-events-none select-none"
                   >
-                    Utility Panel
-                  </motion.h3>
+                    <span
+                      className="text-[15px] font-[500] text-black/80 dark:text-white/80 tracking-tight"
+                      style={{
+                        fontFamily:
+                          'SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                        letterSpacing: "-0.01em",
+                        lineHeight: "1.2",
+                        fontWeight: 500,
+                        textShadow: isDark
+                          ? "0 1px 0 rgba(0,0,0,0.12)"
+                          : "0 1px 0 rgba(255,255,255,0.12)",
+                      }}
+                    >
+                      {/* No label, just a subtle title for accessibility if needed */}
+                      <span className="sr-only">Utility Panel</span>
+                    </span>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
-
-            {/* Enhanced Utility Panel Content - Removed duplicate container */}
+            {/* Subtle divider below header */}
+            <div className="w-full h-[1.5px] bg-gradient-to-r from-transparent via-black/10 dark:via-white/10 to-transparent mb-1" />
+            {/* Apple-style Utility Panel Content */}
             <AnimatePresence mode="wait">
               {!isUtilityPanelMinimized && (
                 <motion.div
@@ -657,19 +691,22 @@ export default function ThreePanelLayout({ children }: ThreePanelLayoutProps) {
                   transition={{ duration: 0.3 }}
                   className={cn(
                     "flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden",
-                    "custom-scrollbar p-4",
+                    "custom-scrollbar px-4 pt-2 pb-4",
                     "transition-all duration-500",
                     isDark
                       ? "scrollbar-thumb-gray-800"
                       : "scrollbar-thumb-gray-200"
                   )}
+                  style={{
+                    fontFamily:
+                      "SF Pro Display, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                  }}
                 >
                   <RightSidebar />
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {/* Panel Resize Handle */}
+            {/* Panel Resize Handle (optional, subtle) */}
             <motion.div
               className={cn(
                 "absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize",
