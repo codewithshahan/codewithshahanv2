@@ -208,49 +208,35 @@ export const MDImage: React.FC<ImageProps> = ({
       animate={isInView ? "animate" : "initial"}
       whileHover="hover"
       variants={containerVariants}
-      transition={{ duration: 0.6 }}
-      className="my-8 md:my-10 max-w-[95%] mx-auto rounded-[1.25rem] overflow-hidden bg-white/5 dark:bg-black/20 backdrop-blur-sm"
+      transition={{ duration: 0.5 }}
+      className="relative group my-8"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
-        boxShadow:
-          "0 8px 30px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.03)",
-      }}
     >
-      <div className="relative overflow-hidden rounded-t-[1.25rem]">
-        <motion.div
-          variants={imageVariants}
-          className="relative aspect-[16/9] w-full"
-        >
-          <Image
-            src={src}
-            alt={alt}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
-            priority
-          />
-        </motion.div>
-
-        <motion.div
-          className="absolute inset-0 pointer-events-none"
-          animate={{
-            boxShadow: isHovered
-              ? "inset 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 30px rgba(0, 0, 0, 0.05)"
-              : "inset 0 0 0 1px rgba(255, 255, 255, 0.07)",
-          }}
+      <div className="relative overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900">
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          className="w-full h-auto object-cover"
+          style={{ filter: "brightness(0.98) saturate(1.1)" }}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
+          quality={90}
+          priority={false}
+          loading="lazy"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
-
       {caption && (
-        <motion.div
-          className="px-4 py-3 text-sm italic text-center text-gray-500 dark:text-gray-400 backdrop-blur-sm bg-white/80 dark:bg-black/50 rounded-b-[1.25rem]"
-          animate={{
-            opacity: isHovered ? 0.95 : 0.85,
-          }}
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: isHovered ? 1 : 0, y: isHovered ? 0 : 10 }}
+          transition={{ duration: 0.3 }}
+          className="absolute bottom-4 left-4 right-4 text-sm text-white text-center font-medium drop-shadow-lg"
         >
           {caption}
-        </motion.div>
+        </motion.p>
       )}
     </motion.div>
   );

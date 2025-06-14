@@ -38,6 +38,7 @@ Object.entries(envConfig).forEach(([key, value]) => {
 const nextConfig = {
   reactStrictMode: true,
   images: {
+    domains: ["cdn.hashnode.com"],
     remotePatterns: [
       { hostname: "public-files.gumroad.com" },
       { hostname: "files.gumroad.com" },
