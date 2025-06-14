@@ -36,6 +36,8 @@ import TagPill from "@/components/TagPill";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import FloatingGumroadCard from "@/components/category/FloatingGumroadCard";
 import { FloatingWindow } from "@/components/category/FloatingWindow";
+import ReactDOM from "react-dom";
+import { useRouter } from "next/navigation";
 
 // ArticleTitle component
 const ArticleTitle: React.FC<{ title: string; className?: string }> = ({
@@ -168,6 +170,7 @@ export default function RightSidebar() {
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<number>(0);
+  const router = useRouter();
 
   // State
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -205,6 +208,14 @@ export default function RightSidebar() {
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productModalProduct, setProductModalProduct] =
     useState<GumroadProduct | null>(null);
+
+  // Add state for pagination
+  const [modalPage, setModalPage] = useState(1);
+  const pageSize = 9;
+  const pagedArticles = latestArticles.slice(
+    (modalPage - 1) * pageSize,
+    modalPage * pageSize
+  );
 
   // Category article getter
   const getArticlesForCategory = useCallback(
@@ -522,6 +533,13 @@ export default function RightSidebar() {
                     <Link
                       key={article.id}
                       href={`/article/${article.slug}`}
+                      prefetch={true}
+                      onMouseEnter={() =>
+                        router.prefetch(`/article/${article.slug}`)
+                      }
+                      onFocus={() =>
+                        router.prefetch(`/article/${article.slug}`)
+                      }
                       className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-primary/10 transition group"
                       onClick={() => setSearchActive(false)}
                     >
@@ -590,7 +608,8 @@ export default function RightSidebar() {
               Trending
             </h3>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 -mx-2">
+            {/* Add -mx-2 to prevent card clipping on hover */}
             {articlesLoading ? (
               renderArticleSkeleton(3)
             ) : trendingArticles.length > 0 ? (
@@ -621,7 +640,7 @@ export default function RightSidebar() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <span className="font-semibold text-sm truncate group-hover:text-primary font-sans">
+                    <span className="font-semibold text-sm text-foreground group-hover:text-primary font-sans whitespace-normal break-words">
                       {article.title}
                     </span>
                     <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
@@ -691,77 +710,86 @@ export default function RightSidebar() {
               </button>
             )}
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 -mx-2">
+            {/* Add -mx-2 to prevent card clipping on hover */}
             {articlesLoading ? (
               renderArticleSkeleton(2)
             ) : latestArticles.length > 0 ? (
               latestArticles.slice(0, compactMode ? 2 : 3).map((article) => (
-                <motion.div
-                  key={article.id}
-                  className={cn(
-                    "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10 flex gap-2 items-center px-2 py-1.5 group transition-all duration-200",
-                    "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
-                    "-mx-2 relative z-10 group-hover:z-20"
-                  )}
-                  whileHover={{ scale: 1.015, y: -1 }}
-                >
-                  <Link
-                    href={`/article/${article.slug}`}
-                    className="flex gap-2 items-center w-full"
+                <div key={article.id} className="mx-2">
+                  <motion.div
+                    key={article.id}
+                    className={cn(
+                      "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10 flex gap-2 items-center px-2 py-1.5 group transition-all duration-200",
+                      "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
+                      "-mx-2 relative z-10 group-hover:z-20"
+                    )}
+                    whileHover={{ scale: 1.015, y: -1 }}
                   >
-                    <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800 border border-blue-200/30 dark:border-blue-900/30">
-                      {article.coverImage ? (
-                        <Image
-                          src={article.coverImage}
-                          width={36}
-                          height={36}
-                          alt={article.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 opacity-70" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <ArticleTitle
-                        title={article.title}
-                        className="!px-2 !py-0.5 !text-xs"
-                      />
-                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                        {article.tags && article.tags.length > 0 && (
-                          <TagPill
-                            name={article.tags[0]?.name ?? ""}
-                            slug={article.tags[0]?.slug ?? ""}
-                            color={article.tags[0]?.color}
-                            className="!text-[10px] !px-1 !py-0.5 !max-w-[70px] md:!max-w-[90px] lg:!max-w-[110px]"
+                    <Link
+                      href={`/article/${article.slug}`}
+                      prefetch={true}
+                      onMouseEnter={() =>
+                        router.prefetch(`/article/${article.slug}`)
+                      }
+                      onFocus={() =>
+                        router.prefetch(`/article/${article.slug}`)
+                      }
+                      className="flex gap-2 items-center w-full"
+                    >
+                      <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-800 border border-blue-200/30 dark:border-blue-900/30">
+                        {article.coverImage ? (
+                          <Image
+                            src={article.coverImage}
+                            width={36}
+                            height={36}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
                           />
-                        )}
-                        {article.publishedAt && (
-                          <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
-                            {(() => {
-                              const date = new Date(article.publishedAt);
-                              const daysAgo = differenceInDays(
-                                new Date(),
-                                date
-                              );
-                              return daysAgo < 7
-                                ? formatDistanceToNow(date, {
-                                    addSuffix: false,
-                                    includeSeconds: false,
-                                  }).replace("about ", "") + " ago"
-                                : format(date, "MMM d");
-                            })()}
-                          </span>
-                        )}
-                        {article.readingTime && (
-                          <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
-                            · {article.readingTime} min
-                          </span>
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 opacity-70" />
                         )}
                       </div>
-                    </div>
-                  </Link>
-                </motion.div>
+                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                        <span className="font-semibold text-sm text-foreground group-hover:text-primary font-sans whitespace-normal break-words">
+                          {article.title}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                          {article.tags && article.tags.length > 0 && (
+                            <TagPill
+                              name={article.tags[0]?.name ?? ""}
+                              slug={article.tags[0]?.slug ?? ""}
+                              color={article.tags[0]?.color}
+                              className="!text-[10px] !px-1 !py-0.5 !max-w-[70px] md:!max-w-[90px] lg:!max-w-[110px]"
+                            />
+                          )}
+                          {article.publishedAt && (
+                            <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
+                              {(() => {
+                                const date = new Date(article.publishedAt);
+                                const daysAgo = differenceInDays(
+                                  new Date(),
+                                  date
+                                );
+                                return daysAgo < 7
+                                  ? formatDistanceToNow(date, {
+                                      addSuffix: false,
+                                      includeSeconds: false,
+                                    }).replace("about ", "") + " ago"
+                                  : format(date, "MMM d");
+                              })()}
+                            </span>
+                          )}
+                          {article.readingTime && (
+                            <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
+                              · {article.readingTime} min
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                </div>
               ))
             ) : (
               <div className="text-center py-4 text-xs text-gray-500 bg-gradient-to-r from-blue-50/60 to-white/80 dark:from-blue-900/20 dark:to-black/30 rounded-xl shadow-inner border border-blue-200/40 dark:border-blue-900/30 flex flex-col items-center gap-2">
@@ -791,7 +819,8 @@ export default function RightSidebar() {
             setSelectedCategoryForModal={setSelectedCategoryForModal}
             setShowCategoryModal={setShowCategoryModal}
           />
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 -mx-2">
+            {/* Add -mx-2 to prevent card clipping on hover */}
             {articlesLoading ? (
               renderArticleSkeleton(2)
             ) : filteredArticles.length > 0 ? (
@@ -799,67 +828,77 @@ export default function RightSidebar() {
                 {filteredArticles
                   .slice(0, compactMode ? 3 : 5)
                   .map((article) => (
-                    <motion.div
-                      key={article.id}
-                      className={cn(
-                        "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10",
-                        "px-2 py-1.5 group transition-all duration-200",
-                        "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
-                        "-mx-2 relative z-10 group-hover:z-20"
-                      )}
-                      whileHover={{ scale: 1.015, y: -1 }}
-                    >
-                      <Link
-                        href={`/article/${article.slug}`}
-                        className="flex flex-col gap-1"
+                    <div key={article.id} className="mx-2">
+                      <motion.div
+                        key={article.id}
+                        className={cn(
+                          "rounded-xl bg-white/60 dark:bg-black/20 shadow-premium-sm border border-white/10 dark:border-white/10",
+                          "px-2 py-1.5 group transition-all duration-200",
+                          "backdrop-blur-md hover:bg-primary/5 hover:shadow-lg hover:ring-2 hover:ring-primary/10",
+                          "-mx-2 relative z-10 group-hover:z-20"
+                        )}
+                        whileHover={{ scale: 1.015, y: -1 }}
                       >
-                        <div className="flex items-start gap-2">
-                          <div
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
-                              `bg-gradient-to-r ${getCategoryColor(
-                                article.tags?.[0]?.name || ""
-                              )}`
-                            )}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <ArticleTitle
-                              title={article.title}
-                              className="!px-0 !py-0 !text-xs line-clamp-2"
+                        <Link
+                          href={`/article/${article.slug}`}
+                          prefetch={true}
+                          onMouseEnter={() =>
+                            router.prefetch(`/article/${article.slug}`)
+                          }
+                          onFocus={() =>
+                            router.prefetch(`/article/${article.slug}`)
+                          }
+                          className="flex flex-col gap-1"
+                        >
+                          <div className="flex items-start gap-2">
+                            <div
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0",
+                                `bg-gradient-to-r ${getCategoryColor(
+                                  article.tags?.[0]?.name || ""
+                                )}`
+                              )}
                             />
-                            <div className="flex items-center gap-2 mt-1">
-                              {article.publishedAt && (
-                                <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
-                                  {(() => {
-                                    const date = new Date(article.publishedAt);
-                                    const daysAgo = differenceInDays(
-                                      new Date(),
-                                      date
-                                    );
-                                    return daysAgo < 7
-                                      ? formatDistanceToNow(date, {
-                                          addSuffix: false,
-                                          includeSeconds: false,
-                                        }).replace("about ", "") + " ago"
-                                      : format(date, "MMM d");
-                                  })()}
-                                </span>
-                              )}
-                              {article.readingTime && (
-                                <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
-                                  · {article.readingTime} min
-                                </span>
-                              )}
-                              {article.views && article.views > 1000 && (
-                                <span className="text-[10px] text-orange-500 font-medium flex items-center gap-0.5 ml-auto">
-                                  <TrendingUp size={10} /> Trending
-                                </span>
-                              )}
+                            <div className="flex-1 min-w-0">
+                              <span className="font-semibold text-sm text-foreground group-hover:text-primary font-sans whitespace-normal break-words">
+                                {article.title}
+                              </span>
+                              <div className="flex items-center gap-2 mt-1">
+                                {article.publishedAt && (
+                                  <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
+                                    {(() => {
+                                      const date = new Date(
+                                        article.publishedAt
+                                      );
+                                      const daysAgo = differenceInDays(
+                                        new Date(),
+                                        date
+                                      );
+                                      return daysAgo < 7
+                                        ? formatDistanceToNow(date, {
+                                            addSuffix: false,
+                                            includeSeconds: false,
+                                          }).replace("about ", "") + " ago"
+                                        : format(date, "MMM d");
+                                    })()}
+                                  </span>
+                                )}
+                                {article.readingTime && (
+                                  <span className="text-[10px] text-muted-foreground font-normal whitespace-nowrap">
+                                    · {article.readingTime} min
+                                  </span>
+                                )}
+                                {article.views && article.views > 1000 && (
+                                  <span className="text-[10px] text-orange-500 font-medium flex items-center gap-0.5 ml-auto">
+                                    <TrendingUp size={10} /> Trending
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </Link>
-                    </motion.div>
+                        </Link>
+                      </motion.div>
+                    </div>
                   ))}
                 <motion.button
                   onClick={() => {
@@ -907,7 +946,8 @@ export default function RightSidebar() {
               Products
             </h3>
           </div>
-          <div className="w-full pb-2">
+          <div className="w-full pb-2 -mx-2">
+            {/* Add -mx-2 to prevent card clipping on hover */}
             {gumroadLoading ? (
               renderArticleSkeleton(2)
             ) : gumroadProducts.length > 0 ? (
@@ -932,70 +972,72 @@ export default function RightSidebar() {
                       ? productNameWords.slice(0, 6).join(" ") + "…"
                       : product.name;
                   return (
-                    <button
-                      key={product.id}
-                      className="group flex items-center w-full rounded-xl bg-gradient-to-br from-white/40 via-background/60 to-primary/10 dark:from-black/30 dark:via-background/60 dark:to-primary/10 backdrop-blur-[6px] border border-white/10 shadow hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 px-3 py-3 mb-3 relative hover:-translate-y-0.5 hover:ring-2 hover:ring-primary/20 hover:scale-[1.025]"
-                      onClick={() => handleProductCardClick(product)}
-                      tabIndex={0}
-                      aria-label={`View details for ${product.name}`}
-                      style={{ minHeight: 80 }}
-                    >
-                      <div className="absolute top-2 right-4 flex items-center gap-1 z-10">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors" />
-                      </div>
-                      {isNew && (
-                        <span
-                          className="absolute top-0 left-0 px-1.5 py-0.5 rounded-br-lg text-[9px] font-semibold bg-green-500 text-white shadow select-none z-20 animate-pulse"
-                          style={{ borderTopLeftRadius: "0.75rem" }}
-                        >
-                          New
-                        </span>
-                      )}
-                      <div className="flex-shrink-0 aspect-square h-20 w-20 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 shadow border border-white/10 mr-3 flex items-center justify-center relative">
-                        <Image
-                          src={
-                            product.thumbnail_url ||
-                            "/images/products/placeholder.jpg"
-                          }
-                          width={80}
-                          height={80}
-                          alt={product.name}
-                          className="object-cover w-full h-full"
-                          priority
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                        <div
-                          className="text-xs font-semibold text-foreground leading-tight text-left truncate"
-                          title={product.name}
-                        >
-                          {displayName}
+                    <div key={product.id} className="mx-2">
+                      <button
+                        key={product.id}
+                        className="group flex items-center w-full rounded-xl bg-gradient-to-br from-white/40 via-background/60 to-primary/10 dark:from-black/30 dark:via-background/60 dark:to-primary/10 backdrop-blur-[6px] border border-white/10 shadow hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 px-3 py-3 mb-3 relative hover:-translate-y-0.5 hover:ring-2 hover:ring-primary/20 hover:scale-[1.025]"
+                        onClick={() => handleProductCardClick(product)}
+                        tabIndex={0}
+                        aria-label={`View details for ${product.name}`}
+                        style={{ minHeight: 80 }}
+                      >
+                        <div className="absolute top-2 right-4 flex items-center gap-1 z-10">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors" />
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-primary font-bold text-[15px]">
-                            {product.formatted_price}
+                        {isNew && (
+                          <span
+                            className="absolute top-0 left-0 px-1.5 py-0.5 rounded-br-lg text-[9px] font-semibold bg-green-500 text-white shadow select-none z-20 animate-pulse"
+                            style={{ borderTopLeftRadius: "0.75rem" }}
+                          >
+                            New
                           </span>
+                        )}
+                        <div className="flex-shrink-0 aspect-square h-20 w-20 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800 shadow border border-white/10 mr-3 flex items-center justify-center relative">
+                          <Image
+                            src={
+                              product.thumbnail_url ||
+                              "/images/products/placeholder.jpg"
+                            }
+                            width={80}
+                            height={80}
+                            alt={product.name}
+                            className="object-cover w-full h-full"
+                            priority
+                          />
                         </div>
-                        <div className="flex items-center gap-1 mt-1 mb-0.5">
-                          <span className="flex items-center gap-0.5 text-yellow-500 text-[10px] font-semibold bg-white/70 dark:bg-black/40 px-1.5 py-0.5 rounded-full shadow border border-yellow-200/40">
-                            <Star className="w-2.5 h-2.5" /> 5.0
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                          <div
+                            className="text-xs font-semibold text-foreground leading-tight text-left truncate"
+                            title={product.name}
+                          >
+                            {displayName}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-primary font-bold text-[15px]">
+                              {product.formatted_price}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1 mb-0.5">
+                            <span className="flex items-center gap-0.5 text-yellow-500 text-[10px] font-semibold bg-white/70 dark:bg-black/40 px-1.5 py-0.5 rounded-full shadow border border-yellow-200/40">
+                              <Star className="w-2.5 h-2.5" /> 5.0
+                            </span>
+                          </div>
+                        </div>
+                        {typeBadge && (
+                          <span
+                            className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/90 text-white shadow-md select-none z-20 border border-white/20"
+                            style={{ letterSpacing: 0.5 }}
+                          >
+                            {typeBadge}
                           </span>
-                        </div>
-                      </div>
-                      {typeBadge && (
-                        <span
-                          className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/90 text-white shadow-md select-none z-20 border border-white/20"
-                          style={{ letterSpacing: 0.5 }}
-                        >
-                          {typeBadge}
+                        )}
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-3 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">
+                          <ArrowRight className="w-4 h-4" />
                         </span>
-                      )}
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity ml-3 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary">
-                        <ArrowRight className="w-4 h-4" />
-                      </span>
-                    </button>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1035,303 +1077,364 @@ export default function RightSidebar() {
           </button>
         </div>
       </motion.div>
-      {/* Floating Modal for All Latest Articles */}
-      <AnimatePresence>
-        {showAllLatest && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/40 backdrop-blur-md"
-            onClick={() => setShowAllLatest(false)}
-            aria-modal="true"
-            role="dialog"
-            tabIndex={-1}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 40, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 40, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="relative w-full max-w-4xl bg-background/95 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-              tabIndex={0}
-              aria-label="All Latest Articles"
-            >
-              {/* MacOS-style header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-background/80 backdrop-blur-md">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors"
-                    onClick={() => setShowAllLatest(false)}
-                  />
-                  <div
-                    className="w-3 h-3 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors"
-                    onClick={() => setShowAllLatest(false)}
-                  />
-                  <div
-                    className="w-3 h-3 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors"
-                    onClick={() => setShowAllLatest(false)}
-                  />
-                </div>
-                <span className="text-sm font-medium text-foreground/80">
-                  Latest Articles ({latestArticles.length})
-                </span>
-                <button
+      {/* Floating Modals: Render at root viewport using React Portal for max z-index and perfect centering */}
+      {(showAllLatest ||
+        (showCategoryModal && selectedCategoryForModal) ||
+        (productModalOpen && productModalProduct)) &&
+        typeof window !== "undefined" &&
+        ReactDOM.createPortal(
+          <>
+            {/* Floating Modal for All Latest Articles */}
+            <AnimatePresence>
+              {showAllLatest && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-gradient-to-br from-[#e0e7efcc] via-[#f8fafbcc] to-[#dbeafecc] dark:from-[#18181cdd] dark:via-[#23232bcc] dark:to-[#0f172add] backdrop-blur-2xl"
+                  style={{
+                    WebkitBackdropFilter: "blur(32px)",
+                    backdropFilter: "blur(32px)",
+                  }}
                   onClick={() => setShowAllLatest(false)}
-                  className="p-1.5 hover:bg-background rounded-md transition-colors"
-                  aria-label="Close"
+                  aria-modal="true"
+                  role="dialog"
+                  tabIndex={-1}
                 >
-                  <X size={16} />
-                </button>
-              </div>
-              {/* Article cards grid */}
-              <div className="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {latestArticles
-                  .slice(0, latestVisibleCount)
-                  .map((article, i) => (
-                    <motion.div
-                      key={article.id}
-                      className="rounded-xl bg-white/80 dark:bg-black/30 border border-white/10 shadow-lg hover:shadow-xl transition-all flex flex-col overflow-hidden group"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      transition={{ delay: i * 0.04, duration: 0.3 }}
-                    >
-                      <Link
-                        href={`/article/${article.slug}`}
-                        className="block focus:outline-none"
-                        onClick={() => setShowAllLatest(false)}
-                      >
-                        <div className="relative w-full aspect-[16/9] bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                          {article.coverImage && (
-                            <Image
-                              src={article.coverImage}
-                              alt={article.title}
-                              fill
-                              className="object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                          )}
-                          <div
-                            className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 z-10"
-                            style={{ mixBlendMode: "overlay" }}
-                          />
-                        </div>
-                        <div className="p-3 flex-1 flex flex-col">
-                          <h4 className="font-semibold text-base mb-1 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-                            {article.title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                            {article.publishedAt && (
-                              <span>
-                                {(() => {
-                                  const date = new Date(article.publishedAt);
-                                  const daysAgo = differenceInDays(
-                                    new Date(),
-                                    date
-                                  );
-                                  return daysAgo < 7
-                                    ? formatDistanceToNow(date, {
-                                        addSuffix: false,
-                                        includeSeconds: false,
-                                      }).replace("about ", "") + " ago"
-                                    : format(date, "MMM d");
-                                })()}
-                              </span>
-                            )}
-                            {article.readingTime && (
-                              <span>· {article.readingTime} min</span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                            {article.brief}
-                          </p>
-                          {article.tags && article.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-auto">
-                              {article.tags.slice(0, 2).map((tag) => (
-                                <TagPill
-                                  key={tag.slug}
-                                  name={tag.name}
-                                  slug={tag.slug}
-                                  color={tag.color}
-                                  className="!text-[10px] !px-2 !py-0.5"
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-                    </motion.div>
-                  ))}
-              </div>
-              {latestVisibleCount < latestArticles.length && (
-                <div className="flex justify-center p-4 border-t border-white/10">
-                  <motion.button
-                    className="px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
-                    onClick={() => setLatestVisibleCount((c) => c + 6)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    aria-label="Load more articles"
+                  <motion.div
+                    initial={{ scale: 0.95, y: 40, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    exit={{ scale: 0.95, y: 40, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="relative w-full max-w-4xl bg-background/95 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-2xl overflow-hidden"
+                    style={{
+                      boxShadow:
+                        "0 8px 48px 0 rgba(0,0,0,0.18), 0 1.5px 8px 0 rgba(0,0,0,0.10)",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    tabIndex={0}
+                    aria-label="All Latest Articles"
                   >
-                    <RefreshCw size={16} className="animate-spin-slow" />
-                    Load More Articles (
-                    {latestArticles.length - latestVisibleCount} remaining)
-                  </motion.button>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Category Articles Modal */}
-      <AnimatePresence>
-        {showCategoryModal && selectedCategoryForModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/40 backdrop-blur-md"
-            onClick={() => setShowCategoryModal(false)}
-            aria-modal="true"
-            role="dialog"
-            tabIndex={-1}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 40, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 40, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="relative w-full max-w-4xl bg-background/95 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-              tabIndex={0}
-              aria-label={`${selectedCategoryForModal.name} Articles`}
-            >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-background/80 backdrop-blur-md">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors"
-                    onClick={() => setShowCategoryModal(false)}
-                  />
-                  <div
-                    className="w-3 h-3 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors"
-                    onClick={() => setShowCategoryModal(false)}
-                  />
-                  <div
-                    className="w-3 h-3 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors"
-                    onClick={() => setShowCategoryModal(false)}
-                  />
-                </div>
-                <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "w-2 h-2 rounded-full",
-                      `bg-gradient-to-r ${
-                        selectedCategoryForModal.color ||
-                        "from-primary to-accent"
-                      }`
-                    )}
-                  />
-                  {selectedCategoryForModal.name} Articles
-                </span>
-                <button
-                  onClick={() => setShowCategoryModal(false)}
-                  className="p-1.5 hover:bg-background rounded-md transition-colors"
-                  aria-label="Close"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getArticlesForCategory(selectedCategoryForModal.slug).map(
-                  (article, i) => (
-                    <motion.div
-                      key={article.id}
-                      className="rounded-xl bg-white/80 dark:bg-black/30 border border-white/10 shadow-lg hover:shadow-xl transition-all flex flex-col overflow-hidden group"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      transition={{ delay: i * 0.04, duration: 0.3 }}
-                    >
-                      <Link
-                        href={`/article/${article.slug}`}
-                        className="block focus:outline-none"
-                        onClick={() => setShowCategoryModal(false)}
+                    {/* MacOS-style header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-background/80 backdrop-blur-md">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors"
+                          onClick={() => setShowAllLatest(false)}
+                        />
+                        <div
+                          className="w-3 h-3 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors"
+                          onClick={() => setShowAllLatest(false)}
+                        />
+                        <div
+                          className="w-3 h-3 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors"
+                          onClick={() => setShowAllLatest(false)}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-foreground/80">
+                        Latest Articles ({latestArticles.length})
+                      </span>
+                      <button
+                        onClick={() => setShowAllLatest(false)}
+                        className="p-1.5 hover:bg-background rounded-md transition-colors"
+                        aria-label="Close"
                       >
-                        <div className="relative w-full aspect-[16/9] bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                          {article.coverImage && (
-                            <Image
-                              src={article.coverImage}
-                              alt={article.title}
-                              fill
-                              className="object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                          )}
-                          <div
-                            className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 z-10"
-                            style={{ mixBlendMode: "overlay" }}
-                          />
-                        </div>
-                        <div className="p-3 flex-1 flex flex-col">
-                          <h4 className="font-semibold text-base mb-1 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-                            {article.title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                            {article.publishedAt && (
-                              <span>
-                                {(() => {
-                                  const date = new Date(article.publishedAt);
-                                  const daysAgo = differenceInDays(
-                                    new Date(),
-                                    date
-                                  );
-                                  return daysAgo < 7
-                                    ? formatDistanceToNow(date, {
-                                        addSuffix: false,
-                                        includeSeconds: false,
-                                      }).replace("about ", "") + " ago"
-                                    : format(date, "MMM d");
-                                })()}
-                              </span>
-                            )}
-                            {article.readingTime && (
-                              <span>· {article.readingTime} min</span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                            {article.brief}
-                          </p>
-                          {article.tags && article.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-auto">
-                              {article.tags.slice(0, 2).map((tag) => (
-                                <TagPill
-                                  key={tag.slug}
-                                  name={tag.name}
-                                  slug={tag.slug}
-                                  color={tag.color}
-                                  className="!text-[10px] !px-2 !py-0.5"
+                        <X size={16} />
+                      </button>
+                    </div>
+                    {/* Article cards grid */}
+                    <div className="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {latestArticles
+                        .slice(0, latestVisibleCount)
+                        .map((article, i) => (
+                          <motion.div
+                            key={article.id}
+                            className="rounded-xl bg-white/80 dark:bg-black/30 border border-white/10 shadow-lg hover:shadow-xl transition-all flex flex-col overflow-hidden group"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            transition={{ delay: i * 0.04, duration: 0.3 }}
+                          >
+                            <Link
+                              href={`/article/${article.slug}`}
+                              prefetch={true}
+                              onMouseEnter={() =>
+                                router.prefetch(`/article/${article.slug}`)
+                              }
+                              className="block focus:outline-none"
+                              onClick={() => setShowAllLatest(false)}
+                            >
+                              <div className="relative w-full aspect-[16/9] bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                                {article.coverImage && (
+                                  <Image
+                                    src={article.coverImage}
+                                    alt={article.title}
+                                    fill
+                                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                  />
+                                )}
+                                <div
+                                  className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 z-10"
+                                  style={{ mixBlendMode: "overlay" }}
                                 />
-                              ))}
-                            </div>
+                              </div>
+                              <div className="p-3 flex-1 flex flex-col">
+                                <h4 className="font-semibold text-base mb-1 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                                  {article.title}
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                                  {article.publishedAt && (
+                                    <span>
+                                      {(() => {
+                                        const date = new Date(
+                                          article.publishedAt
+                                        );
+                                        const daysAgo = differenceInDays(
+                                          new Date(),
+                                          date
+                                        );
+                                        return daysAgo < 7
+                                          ? formatDistanceToNow(date, {
+                                              addSuffix: false,
+                                              includeSeconds: false,
+                                            }).replace("about ", "") + " ago"
+                                          : format(date, "MMM d");
+                                      })()}
+                                    </span>
+                                  )}
+                                  {article.readingTime && (
+                                    <span>· {article.readingTime} min</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                                  {article.brief}
+                                </p>
+                                {article.tags && article.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-auto">
+                                    {article.tags.slice(0, 2).map((tag) => (
+                                      <TagPill
+                                        key={tag.slug}
+                                        name={tag.name}
+                                        slug={tag.slug}
+                                        color={tag.color}
+                                        className="!text-[10px] !px-2 !py-0.5"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          </motion.div>
+                        ))}
+                    </div>
+                    {latestVisibleCount < latestArticles.length && (
+                      <div className="flex justify-center p-4 border-t border-white/10">
+                        <motion.button
+                          className="px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+                          onClick={() => setLatestVisibleCount((c) => c + 6)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          aria-label="Load more articles"
+                        >
+                          <RefreshCw size={16} className="animate-spin-slow" />
+                          Load More Articles (
+                          {latestArticles.length - latestVisibleCount}{" "}
+                          remaining)
+                        </motion.button>
+                      </div>
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Category Articles Modal */}
+            <AnimatePresence>
+              {showCategoryModal && selectedCategoryForModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-gradient-to-br from-[#e0e7efcc] via-[#f8fafbcc] to-[#dbeafecc] dark:from-[#18181cdd] dark:via-[#23232bcc] dark:to-[#0f172add] backdrop-blur-2xl"
+                  style={{
+                    WebkitBackdropFilter: "blur(32px)",
+                    backdropFilter: "blur(32px)",
+                  }}
+                  onClick={() => setShowCategoryModal(false)}
+                  aria-modal="true"
+                  role="dialog"
+                  tabIndex={-1}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, y: 40, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    exit={{ scale: 0.95, y: 40, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="relative w-full max-w-4xl bg-background/95 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-2xl overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                    tabIndex={0}
+                    aria-label={`${selectedCategoryForModal.name} Articles`}
+                  >
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-background/80 backdrop-blur-md">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full bg-red-400 cursor-pointer hover:bg-red-500 transition-colors"
+                          onClick={() => setShowCategoryModal(false)}
+                        />
+                        <div
+                          className="w-3 h-3 rounded-full bg-amber-400 ml-1 cursor-pointer hover:bg-amber-500 transition-colors"
+                          onClick={() => setShowCategoryModal(false)}
+                        />
+                        <div
+                          className="w-3 h-3 rounded-full bg-emerald-400 ml-1 cursor-pointer hover:bg-emerald-500 transition-colors"
+                          onClick={() => setShowCategoryModal(false)}
+                        />
+                      </div>
+                      <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            `bg-gradient-to-r ${
+                              selectedCategoryForModal.color ||
+                              "from-primary to-accent"
+                            }`
                           )}
-                        </div>
-                      </Link>
-                    </motion.div>
-                  )
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
+                        />
+                        {selectedCategoryForModal.name} Articles
+                      </span>
+                      <button
+                        onClick={() => setShowCategoryModal(false)}
+                        className="p-1.5 hover:bg-background rounded-md transition-colors"
+                        aria-label="Close"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {getArticlesForCategory(
+                        selectedCategoryForModal.slug
+                      ).map((article, i) => (
+                        <motion.div
+                          key={article.id}
+                          className="rounded-xl bg-white/80 dark:bg-black/30 border border-white/10 shadow-lg hover:shadow-xl transition-all flex flex-col overflow-hidden group"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 20 }}
+                          transition={{ delay: i * 0.04, duration: 0.3 }}
+                        >
+                          <Link
+                            href={`/article/${article.slug}`}
+                            prefetch={true}
+                            onMouseEnter={() =>
+                              router.prefetch(`/article/${article.slug}`)
+                            }
+                            className="block focus:outline-none"
+                            onClick={() => setShowCategoryModal(false)}
+                          >
+                            <div className="relative w-full aspect-[16/9] bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                              {article.coverImage && (
+                                <Image
+                                  src={article.coverImage}
+                                  alt={article.title}
+                                  fill
+                                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                              )}
+                              <div
+                                className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30 z-10"
+                                style={{ mixBlendMode: "overlay" }}
+                              />
+                            </div>
+                            <div className="p-3 flex-1 flex flex-col">
+                              <h4 className="font-semibold text-base mb-1 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                                {article.title}
+                              </h4>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                                {article.publishedAt && (
+                                  <span>
+                                    {(() => {
+                                      const date = new Date(
+                                        article.publishedAt
+                                      );
+                                      const daysAgo = differenceInDays(
+                                        new Date(),
+                                        date
+                                      );
+                                      return daysAgo < 7
+                                        ? formatDistanceToNow(date, {
+                                            addSuffix: false,
+                                            includeSeconds: false,
+                                          }).replace("about ", "") + " ago"
+                                        : format(date, "MMM d");
+                                    })()}
+                                  </span>
+                                )}
+                                {article.readingTime && (
+                                  <span>· {article.readingTime} min</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                                {article.brief}
+                              </p>
+                              {article.tags && article.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-auto">
+                                  {article.tags.slice(0, 2).map((tag) => (
+                                    <TagPill
+                                      key={tag.slug}
+                                      name={tag.name}
+                                      slug={tag.slug}
+                                      color={tag.color}
+                                      className="!text-[10px] !px-2 !py-0.5"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Product Modal */}
+            <AnimatePresence>
+              {productModalOpen && productModalProduct && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[2147483647] flex items-center justify-center bg-gradient-to-br from-[#e0e7efcc] via-[#f8fafbcc] to-[#dbeafecc] dark:from-[#18181cdd] dark:via-[#23232bcc] dark:to-[#0f172add] backdrop-blur-2xl"
+                  style={{
+                    WebkitBackdropFilter: "blur(32px)",
+                    backdropFilter: "blur(32px)",
+                  }}
+                  onClick={handleProductModalClose}
+                  aria-modal="true"
+                  role="dialog"
+                  tabIndex={-1}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, y: 40, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    exit={{ scale: 0.95, y: 40, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="relative w-full max-w-2xl bg-background/95 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-2xl overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                    tabIndex={0}
+                    aria-label="Product Details"
+                  >
+                    <FloatingWindow
+                      products={[productModalProduct]}
+                      onClose={handleProductModalClose}
+                    />
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>,
+          document.body
         )}
-      </AnimatePresence>
-      {/* Only one floating Gumroad product modal, bottom right aligned */}
-      <AnimatePresence>
-        {productModalOpen && productModalProduct && (
-          <FloatingWindow
-            products={[productModalProduct]}
-            onClose={handleProductModalClose}
-          />
-        )}
-      </AnimatePresence>
     </>
   );
 }

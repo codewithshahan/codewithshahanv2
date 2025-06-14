@@ -10,13 +10,7 @@ import {
   ChevronUp,
   ChevronRight,
 } from "lucide-react";
-
-interface Heading {
-  id: string;
-  text: string;
-  level: number;
-  children?: Heading[];
-}
+import { Heading } from "./tocUtils";
 
 interface TableOfContentsProps {
   headings: Heading[];
@@ -33,20 +27,9 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   article,
 }) => {
   const [activeId, setActiveId] = useState<string>("");
-  const [expandedSections, setExpandedSections] = useState<
-    Record<string, boolean>
-  >({});
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-
-  // Toggle section expansion
-  const toggleSection = (id: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
 
   // Handle scroll and set active section
   useEffect(() => {
@@ -73,13 +56,6 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
       }
     };
 
-    // Initialize expanded sections
-    const initialExpandedSections: Record<string, boolean> = {};
-    headings.forEach((heading) => {
-      initialExpandedSections[heading.id] = true;
-    });
-    setExpandedSections(initialExpandedSections);
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll(); // Initial check
 
@@ -91,60 +67,37 @@ const TableOfContents: React.FC<TableOfContentsProps> = ({
   const renderHeadings = (items: Heading[], level = 0) => {
     return items.map((heading) => {
       const isActive = activeId === heading.id;
-      const hasChildren = heading.children && heading.children.length > 0;
-      const isExpanded = expandedSections[heading.id];
 
       return (
         <div
           key={heading.id}
-          style={{ marginLeft: `${level * 12}px` }}
+          style={{ marginLeft: `${(heading.level - 2) * 12}px` }}
           className="mb-1"
         >
-          <div className="flex items-center">
-            {hasChildren && (
-              <button
-                onClick={() => toggleSection(heading.id)}
-                className="p-1 mr-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-800"
-              >
-                {isExpanded ? (
-                  <ChevronDown size={14} className="text-gray-500" />
-                ) : (
-                  <ChevronRight size={14} className="text-gray-500" />
-                )}
-              </button>
-            )}
-            <a
-              href={`#${heading.id}`}
-              className={`block py-1 px-2 rounded-md text-sm transition-colors ${
-                isActive
-                  ? "text-primary bg-primary/10 font-medium"
-                  : isDark
-                  ? "text-gray-300 hover:text-gray-100"
-                  : "text-gray-700 hover:text-gray-900"
-              }`}
-              onClick={(e) => {
-                e.preventDefault();
-                const element = document.getElementById(heading.id);
-                if (element) {
-                  const yOffset = -100; // Adjust based on your header height
-                  const y =
-                    element.getBoundingClientRect().top +
-                    window.pageYOffset +
-                    yOffset;
-                  window.scrollTo({ top: y, behavior: "smooth" });
-                }
-              }}
-            >
-              {heading.text}
-            </a>
-          </div>
-
-          {/* Recursively render children */}
-          {hasChildren && isExpanded && (
-            <div className="mt-1">
-              {renderHeadings(heading.children || [], level + 1)}
-            </div>
-          )}
+          <a
+            href={`#${heading.id}`}
+            className={`block py-1 px-2 rounded-md text-sm transition-colors ${
+              isActive
+                ? "text-primary bg-primary/10 font-medium"
+                : isDark
+                ? "text-gray-300 hover:text-gray-100"
+                : "text-gray-700 hover:text-gray-900"
+            }`}
+            onClick={(e) => {
+              e.preventDefault();
+              const element = document.getElementById(heading.id);
+              if (element) {
+                const yOffset = -100; // Adjust based on your header height
+                const y =
+                  element.getBoundingClientRect().top +
+                  window.pageYOffset +
+                  yOffset;
+                window.scrollTo({ top: y, behavior: "smooth" });
+              }
+            }}
+          >
+            {heading.text}
+          </a>
         </div>
       );
     });

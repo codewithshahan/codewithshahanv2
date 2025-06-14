@@ -231,3 +231,10 @@ export function getArticleCategories(): {
   });
   return Array.from(catMap.values()).sort((a, b) => b.count - a.count);
 }
+
+export async function getArticleBySlug(
+  slug: string
+): Promise<HashnodeArticle | null> {
+  await fetchAndCacheAllArticles(); // Ensure cache is populated
+  return allArticles.find((article) => article.slug === slug) || null;
+}
